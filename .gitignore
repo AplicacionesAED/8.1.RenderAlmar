@@ -2,4 +2,4 @@ node_modules/
 dist/
 .claude/
 # GLB crudos de IfcConvert (se regeneran desde los IFC; la app usa public/models)
-models/
+/models/
