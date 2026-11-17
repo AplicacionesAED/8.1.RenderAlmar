@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Almar · Recorrido</title>
+<style>
+  :root{--paper:#f1ece2;--ink:#3b352c;--accent:#a8432a}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:Georgia,serif}
+  canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}
+  #brand{position:fixed;top:20px;left:24px;font-size:13px;letter-spacing:.18em;text-transform:uppercase;opacity:.8}
+  #ui{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:10px;align-items:flex-end;font-size:12px;letter-spacing:.06em}
+  #ui .seg{display:flex;background:rgba(241,236,226,.92);border:1px solid rgba(59,53,44,.25)}
+  #ui .seg button{font:inherit;letter-spacing:inherit;background:none;border:0;padding:8px 14px;color:var(--ink);cursor:pointer}
+  #ui .seg button.on{background:var(--ink);color:var(--paper)}
+  #ui .hour{display:flex;align-items:center;gap:8px;background:rgba(241,236,226,.92);border:1px solid rgba(59,53,44,.25);padding:6px 12px}
+  #ui input[type=range]{width:150px;accent-color:var(--accent)}
+  #ui output{min-width:42px;text-align:right;font-variant-numeric:tabular-nums}
+  body.orbit{overflow:hidden}
+  body.orbit canvas{touch-action:none;cursor:grab}
+  #orbithint{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);font-size:12px;letter-spacing:.06em;
+            background:rgba(241,236,226,.92);border:1px solid rgba(59,53,44,.25);padding:8px 14px;display:none;white-space:nowrap}
+  body.orbit #orbithint{display:block}
+  @media (max-width:600px){#ui input[type=range]{width:110px}}
+  /* --- Panel de cámara (vista libre y apartamentos) --- */
+  #camBtn,#campanel{display:none}
+  body.orbit #camBtn{display:block}
+  #camBtn{font:inherit;letter-spacing:inherit;padding:8px 14px;color:var(--ink);cursor:pointer;background:rgba(241,236,226,.92);border:1px solid rgba(59,53,44,.25)}
+  #camBtn.on{background:var(--ink);color:var(--paper)}
+  body.orbit #campanel:not([hidden]){display:block}
+  #campanel{position:fixed;right:16px;bottom:16px;width:250px;padding:12px 14px;font-size:12px;letter-spacing:.04em;z-index:30}
+  #campanel h3{margin:0 0 8px;font-size:12px;font-weight:normal;letter-spacing:.1em;text-transform:uppercase;opacity:.7}
+  #campanel .cam-row{display:grid;grid-template-columns:1fr auto;align-items:center;gap:2px 8px;margin-bottom:8px}
+  #campanel input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--accent)}
+  #campanel input[type=number]{width:52px;font:inherit;text-align:right;padding:2px 4px;border:1px solid rgba(59,53,44,.3);background:#fff;color:var(--ink);font-variant-numeric:tabular-nums}
+  #campanel button{font:inherit;width:100%;padding:6px;border:1px solid rgba(59,53,44,.25);background:var(--paper);color:var(--ink);cursor:pointer}
+  @media (max-width:640px){#campanel{left:16px;right:16px;width:auto;bottom:70px} #campanel input[type=number]{font-size:16px}}
+  /* --- Selector de apartamentos (portado de visor-oliv-3d) --- */
+  .glass{background:rgba(241,236,226,.94);border:1px solid rgba(59,53,44,.25)}
+  #list,#legend,#panel{display:none}
+  body.units #list,body.units #legend{display:block}
+  body.units #legend{display:flex}
+  body.units #orbithint{display:none}
+  #list{position:fixed;left:16px;top:56px;width:150px;max-height:calc(100vh - 140px);overflow-y:auto;padding:10px;font-size:13px}
+  #list .lv{margin-bottom:10px}
+  #list .lv>span{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-bottom:4px}
+  #list button{font:inherit;margin:0 4px 4px 0;padding:5px 8px;min-width:40px;border:1px solid rgba(59,53,44,.25);background:var(--paper);
+               color:var(--ink);cursor:pointer;box-shadow:inset 3px 0 0 var(--st,transparent)}
+  #list button:hover{background:#fff}
+  #list button.on{background:var(--ink);color:var(--paper)}
+  #legend{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);flex-wrap:wrap;justify-content:center;gap:2px;padding:4px;max-width:calc(100vw - 32px);box-sizing:border-box}
+  #legend button{font:inherit;font-size:13px;padding:7px 12px;border:0;background:transparent;color:var(--ink);cursor:pointer}
+  #legend button:hover{background:#fff}
+  #legend button.mode.on{background:var(--ink);color:var(--paper)}
+  #legend button.off{opacity:.4;text-decoration:line-through}
+  #legend b{margin-left:4px;opacity:.65}
+  .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
+  body.units #panel:not([hidden]){display:block}
+  #panel{position:fixed;right:16px;top:120px;width:230px;padding:16px 18px;max-height:calc(100vh - 200px);overflow-y:auto}
+  #panel .p-kind{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+  #panel .p-name{font-size:22px;margin:2px 0 10px}
+  #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 12px;font-size:13px}
+  #panel dt{opacity:.6} #panel dd{margin:0;text-align:right}
+  #panel .p-plan{display:block;width:100%;max-height:170px;object-fit:contain;margin:0 0 4px;padding:6px;box-sizing:border-box;background:#fff;cursor:zoom-in}
+  #panel .p-cap{text-align:center;font-size:11px;opacity:.6;margin-bottom:8px}
+  #panel button{font:inherit;width:100%;padding:7px;margin-top:4px;border:1px solid rgba(59,53,44,.25);background:var(--paper);color:var(--ink);cursor:pointer}
+  #panel .p-primary{background:var(--accent);color:#fff;border-color:transparent}
+  .lightbox{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(30,25,20,.55);cursor:zoom-out}
+  .lightbox img{max-width:92vw;max-height:90vh;background:#fff;padding:12px}
+  .pano{position:fixed;inset:0;z-index:60;background:#111}
+  .pano canvas{position:absolute;inset:0;width:100%;height:100%;display:block;cursor:grab;touch-action:none}
+  .pano-head{position:absolute;left:16px;top:16px;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 16px;font-size:14px}
+  .pano-head button{border:0;background:transparent;color:var(--ink);font-size:22px;line-height:1;cursor:pointer;padding:2px 8px}
+  .pano-thumbs{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);display:flex;gap:8px;padding:8px;max-width:calc(100vw - 32px);overflow-x:auto}
+  .pano-thumbs button{flex:0 0 auto;padding:0;border:2px solid transparent;overflow:hidden;background:none;cursor:pointer;opacity:.75}
+  .pano-thumbs button.on{border-color:var(--accent);opacity:1}
+  .pano-thumbs img{display:block;width:96px;height:48px;object-fit:cover}
+  .pano-hint{position:absolute;right:16px;top:16px;padding:8px 14px;font-size:12px}
+  @media (max-width:640px){#list{display:none!important} #panel{left:16px;right:16px;width:auto;top:auto;bottom:70px} .pano-hint{display:none}}
+  #load{position:fixed;inset:0;display:grid;place-items:center;background:var(--paper);font-size:14px;letter-spacing:.1em;transition:opacity .6s}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="brand">Almar</div>
+<div id="ui">
+  <div class="seg" role="group" aria-label="Modo">
+    <button id="m-orbit" class="on" type="button">Vista libre</button>
+    <button id="m-units" type="button">Apartamentos</button>
+  </div>
+  <label class="hour">Hora <input id="hour" type="range" min="5" max="20" step="0.25" value="17.25"><output id="hourv">17:15</output></label>
+  <button id="camBtn" type="button" aria-expanded="false" aria-controls="campanel">Cámara</button>
+</div>
+<div id="campanel" class="glass" hidden>
+  <h3>Cámara</h3>
+  <div class="cam-row"><label for="cam-dist-n">Distancia</label><span><input id="cam-dist-n" type="number" min="40" max="250" step="1" inputmode="numeric"> m</span><input id="cam-dist" type="range" min="40" max="250" step="1" aria-label="Distancia"></div>
+  <div class="cam-row"><label for="cam-elev-n">Altura sobre el horizonte</label><span><input id="cam-elev-n" type="number" min="2" max="60" step="1" inputmode="numeric"> °</span><input id="cam-elev" type="range" min="2" max="60" step="1" aria-label="Altura sobre el horizonte"></div>
+  <div class="cam-row"><label for="cam-az-n">Ángulo de giro</label><span><input id="cam-az-n" type="number" min="-180" max="180" step="1" inputmode="numeric"> °</span><input id="cam-az" type="range" min="-180" max="180" step="1" aria-label="Ángulo de giro"></div>
+  <div class="cam-row"><label for="cam-mm-n">Lente</label><span><input id="cam-mm-n" type="number" min="14" max="85" step="1" inputmode="numeric"> mm</span><input id="cam-mm" type="range" min="14" max="85" step="1" aria-label="Lente"></div>
+  <button id="cam-reset" type="button">Restablecer</button>
+</div>
+<div id="orbithint">Arrastra para girar alrededor de las torres · WASD o clic derecho para desplazarte</div>
+<div id="list" class="glass" aria-label="Apartamentos"></div>
+<div id="panel" class="glass" hidden></div>
+<div id="legend" class="glass"></div>
+<div id="load">cargando implantación…</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>

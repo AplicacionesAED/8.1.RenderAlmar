@@ -1,0 +1,15 @@
+{
+  "nota": "Rectangulos de los apartamentos de la Torre 2 (Lote 21), medidos sobre almar_l21_c.glb. Marco: origen c (x, z), eje p a phi grados del eje x, eje q perpendicular. Cada rectangulo [q0,q1] x [p0,p1] incluye la terraza (arriba, p menor). Indice k: 0 = apto x01 ... 5 = x06. Numeracion INVERTIDA a pedido: x01 es el extremo derecho del plano (el de mayor q) y x06 el izquierdo; las formas siguen igual, solo cambia que numero ocupa cada una. Los m2 de las formas: extremo izquierdo 140, derecho 128, intermedios 105-110; HubSpot: 101 = 138, 106 = 130. Misma forma en los 3 pisos.",
+  "2": {
+    "phi": 5.5,
+    "c": [1.7309, -3.2949],
+    "rects": {
+      "0": { "q": [18.8, 26.55], "p": [-3.3, 13.25] },
+      "1": { "q": [11.05, 18.8], "p": [-5.95, 7.6] },
+      "2": { "q": [3.3, 11.05], "p": [-8.7, 5.25] },
+      "3": { "q": [-4.45, 3.3], "p": [-11.45, 2.75] },
+      "4": { "q": [-12.2, -4.45], "p": [-14.1, -0.5] },
+      "5": { "q": [-20.4, -12.2], "p": [-16.85, 1.25] }
+    }
+  }
+}

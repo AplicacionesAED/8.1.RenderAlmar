@@ -1,0 +1,306 @@
+{
+ "nota": "Apartamentos de la Torre 1 medidos del IFC (grupos de modelo de Revit; tools/l16_units.py). Caja en el marco de la torre: eje u a \"axis\" grados del eje x de la escena, w perpendicular; incluye muros y llega hasta el borde del balcón (losa de porcelanato o baranda). HubSpot registra 8 por piso y el IFC 7: los datos comerciales quedan pendientes.",
+ "axis": 78,
+ "floors": {
+  "1": 45.97,
+  "2": 49.57,
+  "3": 53.17
+ },
+ "height": 3.6,
+ "units": [
+  {
+   "n": 101,
+   "f": 1,
+   "g": "APTO_TC",
+   "guid": "1fI0NVB5fB4eNlDbFfz68c",
+   "u": [
+    0.61,
+    9.33
+   ],
+   "w": [
+    25.69,
+    43.94
+   ]
+  },
+  {
+   "n": 102,
+   "f": 1,
+   "g": "APTO_3HABITACIONES",
+   "guid": "1REcw8y_bFrekzPguCzRGU",
+   "u": [
+    -11.03,
+    0.84
+   ],
+   "w": [
+    30.37,
+    44.77
+   ]
+  },
+  {
+   "n": 103,
+   "f": 1,
+   "g": "APTO_TB",
+   "guid": "1REcw8y_bFrekzPguCzR2b",
+   "u": [
+    -18.63,
+    -10.8
+   ],
+   "w": [
+    30.44,
+    44.81
+   ]
+  },
+  {
+   "n": 104,
+   "f": 1,
+   "g": "APTO_TB",
+   "guid": "1REcw8y_bFrekzPguCzOqp",
+   "u": [
+    -26.4,
+    -18.57
+   ],
+   "w": [
+    30.48,
+    44.86
+   ]
+  },
+  {
+   "n": 105,
+   "f": 1,
+   "g": "APTO_TB",
+   "guid": "1REcw8y_bFrekzPguCzOfh",
+   "u": [
+    -34.16,
+    -26.33
+   ],
+   "w": [
+    30.53,
+    44.9
+   ]
+  },
+  {
+   "n": 106,
+   "f": 1,
+   "g": "APTO_3HABITACIONES",
+   "guid": "1REcw8y_bFrekzPguCzRH8",
+   "u": [
+    -45.92,
+    -34.1
+   ],
+   "w": [
+    30.59,
+    44.97
+   ]
+  },
+  {
+   "n": 107,
+   "f": 1,
+   "g": "APTO_TC",
+   "guid": "2iyDqIno1DjPCHnfSt9WVq",
+   "u": [
+    -54.51,
+    -45.75
+   ],
+   "w": [
+    26.04,
+    44.26
+   ]
+  },
+  {
+   "n": 201,
+   "f": 2,
+   "g": "APTO_TC",
+   "guid": "1fI0NVB5fB4eNlDbFfz6BF",
+   "u": [
+    0.61,
+    9.33
+   ],
+   "w": [
+    25.69,
+    43.93
+   ]
+  },
+  {
+   "n": 202,
+   "f": 2,
+   "g": "APTO_3HABITACIONES",
+   "guid": "3GcSOqVYT2KPJKPRw2OiFd",
+   "u": [
+    -11.03,
+    0.84
+   ],
+   "w": [
+    30.37,
+    44.72
+   ]
+  },
+  {
+   "n": 203,
+   "f": 2,
+   "g": "APTO_TB",
+   "guid": "3GcSOqVYT2KPJKPRw2Ojm9",
+   "u": [
+    -18.63,
+    -10.8
+   ],
+   "w": [
+    30.44,
+    44.79
+   ]
+  },
+  {
+   "n": 204,
+   "f": 2,
+   "g": "APTO_TB",
+   "guid": "3GcSOqVYT2KPJKPRw2Ojd8",
+   "u": [
+    -26.4,
+    -18.57
+   ],
+   "w": [
+    30.48,
+    44.84
+   ]
+  },
+  {
+   "n": 205,
+   "f": 2,
+   "g": "APTO_TB",
+   "guid": "3GcSOqVYT2KPJKPRw2Ojk7",
+   "u": [
+    -34.16,
+    -26.33
+   ],
+   "w": [
+    30.53,
+    44.88
+   ]
+  },
+  {
+   "n": 206,
+   "f": 2,
+   "g": "APTO_3HABITACIONES",
+   "guid": "3GcSOqVYT2KPJKPRw2OiFx",
+   "u": [
+    -45.92,
+    -34.1
+   ],
+   "w": [
+    30.59,
+    44.96
+   ]
+  },
+  {
+   "n": 207,
+   "f": 2,
+   "g": "APTO_TC",
+   "guid": "2zj8_6aCj3ufiQe20GVmxR",
+   "u": [
+    -54.51,
+    -45.75
+   ],
+   "w": [
+    26.04,
+    44.23
+   ]
+  },
+  {
+   "n": 301,
+   "f": 3,
+   "g": "APTO",
+   "guid": "1fI0NVB5fB4eNlDbFfz6Di",
+   "u": [
+    0.61,
+    9.33
+   ],
+   "w": [
+    25.69,
+    43.93
+   ]
+  },
+  {
+   "n": 302,
+   "f": 3,
+   "g": "APTO_3HABITACIONES",
+   "guid": "18Tqd5pVTF3vu99YZfvxwO",
+   "u": [
+    -11.03,
+    0.84
+   ],
+   "w": [
+    30.37,
+    44.76
+   ]
+  },
+  {
+   "n": 303,
+   "f": 3,
+   "g": "APTO_TB",
+   "guid": "18Tqd5pVTF3vu99YZfvxhw",
+   "u": [
+    -18.63,
+    -10.8
+   ],
+   "w": [
+    30.44,
+    44.79
+   ]
+  },
+  {
+   "n": 304,
+   "f": 3,
+   "g": "APTO_TB",
+   "guid": "18Tqd5pVTF3vu99YZfvwIv",
+   "u": [
+    -26.4,
+    -18.57
+   ],
+   "w": [
+    30.48,
+    44.84
+   ]
+  },
+  {
+   "n": 305,
+   "f": 3,
+   "g": "APTO_TB",
+   "guid": "18Tqd5pVTF3vu99YZfvwTu",
+   "u": [
+    -34.16,
+    -26.33
+   ],
+   "w": [
+    30.53,
+    44.88
+   ]
+  },
+  {
+   "n": 306,
+   "f": 3,
+   "g": "APTO_3HABITACIONES",
+   "guid": "18Tqd5pVTF3vu99YZfvxwC",
+   "u": [
+    -45.92,
+    -34.1
+   ],
+   "w": [
+    30.59,
+    44.96
+   ]
+  },
+  {
+   "n": 307,
+   "f": 3,
+   "g": "APTO",
+   "guid": "15gCQoGkzF_QF8kyQWSz80",
+   "u": [
+    -54.51,
+    -45.81
+   ],
+   "w": [
+    26.04,
+    44.23
+   ]
+  }
+ ]
+}

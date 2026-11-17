@@ -1,0 +1,36 @@
+{
+"styles": {
+"IfcSurfaceStyleRendering-10041": "Tierra",
+"IfcSurfaceStyleRendering-15170": "Suelos por defecto",
+"IfcSurfaceStyleRendering-17406": "Enlucido - Blanco",
+"IfcSurfaceStyleRendering-17419": "Ladrillo de cerámica hueco doble",
+"IfcSurfaceStyleRendering-17642": "Línea de plaza de aparcamiento",
+"IfcSurfaceStyleRendering-80207": "Acero inoxidable, pulido",
+"IfcSurfaceStyleRendering-80213": "Relleno",
+"IfcSurfaceStyleRendering-80219": "LOGO SAXUN",
+"IfcSurfaceStyleRendering-666740": "Muro por defecto",
+"IfcSurfaceStyleRendering-671310": "Metal - Cendrex - Powder Coated White",
+"IfcSurfaceStyleRendering-679790": "Metal - Precision Ladders LLC - Aluminum - Mill Finish"
+},
+"slab_finish": {
+"3mdSBmOs57Yw_AWSPG$dzG": "Suelos por defecto",
+"3mdSBmOs57Yw_AWSPG$dRj": "Suelos por defecto",
+"1jDrcMYlHC_OG3xp7A1jXA": "Suelos por defecto",
+"3RRKPVk$9EgPbcL0PljMb8": "Suelos por defecto",
+"3RRKPVk$9EgPbcL0TljMb8": "Suelos por defecto",
+"19jHQSgFL6ZhppXaLxb$o$": "Suelos por defecto",
+"19jHQSgFL6ZhppXaTxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXaPxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXa5xb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXa1xb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXaDxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXa9xb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXarxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXanxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXazxb$jP": "Suelos por defecto",
+"19jHQSgFL6ZhppXavxb$jP": "Suelos por defecto",
+"3s5JLnvInAgQwSqtAR1nMQ": "Suelos por defecto",
+"1U6XQX_LL4YxtpDeoRRn7l": "Suelos por defecto",
+"1U6XQX_LL4YxtpDeoRRn9X": "Suelos por defecto"
+}
+}

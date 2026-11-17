@@ -1,0 +1,5 @@
+{
+  "nota": "Altura (m sobre el minimo del GLB) de cada piso de venta: del tope de su losa al tope de la losa siguiente. Medido cruzando las losas del IFC con el GLB.",
+  "1": { "1": [1.3, 4.97], "2": [4.97, 8.57], "3": [8.57, 12.1] },
+  "2": { "1": [3.74, 7.34], "2": [7.34, 10.94], "3": [10.94, 14.55] }
+}

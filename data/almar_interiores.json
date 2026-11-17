@@ -1,0 +1,11 @@
+{
+  "nota": "Panoramas 360 equirectangulares de Almar, version 2 (1600x800, vienen de WhatsApp: baja resolucion y la costura izquierda-derecha no cuadra; reemplazar por los originales de 4096x2048). Por ahora TODOS los apartamentos usan el mismo conjunto (porDefecto); para dar uno distinto a un tipo o a una unidad se agrega en porTipo ('E') o porUnidad ('1-205', torre-numero) la misma lista de ambientes.",
+  "porDefecto": [
+    { "nombre": "Sala · comedor · cocina (1)", "foto": "/interiores/almar/sala-v2-1.jpg", "mini": "/interiores/almar/miniaturas/sala-v2-1.jpg" },
+    { "nombre": "Sala · comedor · cocina (2)", "foto": "/interiores/almar/sala-v2-2.jpg", "mini": "/interiores/almar/miniaturas/sala-v2-2.jpg" },
+    { "nombre": "Sala · comedor · cocina (3)", "foto": "/interiores/almar/sala-v2-3.jpg", "mini": "/interiores/almar/miniaturas/sala-v2-3.jpg" },
+    { "nombre": "Sala · comedor · cocina (4)", "foto": "/interiores/almar/sala-v2-4.jpg", "mini": "/interiores/almar/miniaturas/sala-v2-4.jpg" }
+  ],
+  "porTipo": {},
+  "porUnidad": {}
+}
