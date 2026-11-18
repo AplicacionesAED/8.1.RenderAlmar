@@ -236,7 +236,13 @@ resize();
 // --- Vista libre: arrastrar para girar, rueda/pellizco para acercar, clic derecho o dos dedos para desplazar
 // Punto de giro: el centro de las dos torres. WASD, el desplazamiento y el zoom al cursor mueven el punto de
 // mira; al empezar a arrastrar con el botón izquierdo, vuelve suave a las torres para girar siempre sobre ellas.
-const towersPivot = towerBox.clone().union(l16Box).getCenter(new THREE.Vector3());
+// Foco del giro: las dos torres, o solo una (Torre 1 = Lote 16, Torre 2 = Lote 21).
+const FOCUS = {
+  all: towerBox.clone().union(l16Box).getCenter(new THREE.Vector3()),
+  t1: l16Box.getCenter(new THREE.Vector3()),
+  t2: towerBox.getCenter(new THREE.Vector3()),
+};
+let towersPivot = FOCUS.all;
 let glideToTowers = false;
 const orbit = new OrbitControls(camera, canvas);
 orbit.enabled = false;
@@ -373,6 +379,13 @@ document.getElementById('cam-reset').addEventListener('click', () => {
 showCam();
 applyCam();
 
+// Selector de torre: el punto de giro pasa al centro de la torre elegida (la cámara se desliza hasta ella)
+const focusBtns = [...document.querySelectorAll('#focus button')];
+for (const b of focusBtns) b.addEventListener('click', () => {
+  towersPivot = FOCUS[b.dataset.f];
+  glideToTowers = true;
+  focusBtns.forEach((x) => x.classList.toggle('on', x === b));
+});
 ui.orbit.addEventListener('click', () => setMode('orbit'));
 ui.units.addEventListener('click', () => setMode('units'));
 
