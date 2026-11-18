@@ -344,8 +344,21 @@ for (const k of camFields) {
   });
   field(k).addEventListener('change', (e) => setCam(k, e.target.value, 'blur'));
 }
+// Pivote de la órbita (orbit.target): punto alrededor del que gira la cámara. Se ve con el panel abierto,
+// por encima de todo (sin prueba de profundidad), con tamaño constante en pantalla.
+const pivotMat = new THREE.MeshBasicMaterial({ color: 0xa8432a, depthTest: false, fog: false });
+const pivotMark = new THREE.Group();
+pivotMark.add(new THREE.Mesh(new THREE.SphereGeometry(1, 16, 12), pivotMat));
+for (const [c, d] of [[0xd04040, [1, 0, 0]], [0x3fa34d, [0, 1, 0]], [0x3f6fd0, [0, 0, 1]]]) { // ejes x, y, z
+  const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...d).multiplyScalar(-6), new THREE.Vector3(...d).multiplyScalar(6)]);
+  pivotMark.add(new THREE.Line(g, new THREE.LineBasicMaterial({ color: c, depthTest: false, fog: false })));
+}
+pivotMark.traverse((o) => { o.renderOrder = 999; });
+pivotMark.visible = false;
+scene.add(pivotMark);
 camBtn.addEventListener('click', () => {
   camPanel.hidden = !camPanel.hidden;
+  pivotMark.visible = !camPanel.hidden;
   camBtn.classList.toggle('on', !camPanel.hidden);
   camBtn.setAttribute('aria-expanded', String(!camPanel.hidden));
   if (!camPanel.hidden) { CAM.az = Math.round(THREE.MathUtils.radToDeg(orbit.getAzimuthalAngle())); showCam(); }
@@ -381,6 +394,10 @@ function frame() {
   orbitKeys(dt);
   units.update();
   orbit.update();
+  if (pivotMark.visible) {
+    pivotMark.position.copy(orbit.target);
+    pivotMark.scale.setScalar(camera.position.distanceTo(orbit.target) * 0.012);
+  }
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
