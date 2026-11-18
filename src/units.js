@@ -193,7 +193,7 @@ export function createUnits({ scene, camera, canvas, orbit }) {
     const r = canvas.getBoundingClientRect();
     ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
     ray.setFromCamera(ndc, camera);
-    const cand = [...meshes.values()].filter((x) => !statusMode || shown(x.u) || selected === x.u);
+    const cand = [...meshes.values()].filter((x) => x.u.t !== hiddenT && (!statusMode || shown(x.u) || selected === x.u));
     const hit = ray.intersectObjects(cand.map((x) => x.mesh), false)[0];
     return hit ? hit.object.userData.unit : null;
   }
@@ -213,10 +213,14 @@ export function createUnits({ scene, camera, canvas, orbit }) {
     refresh();
   });
 
+  // torre oculta temporalmente porque tapa la torre elegida (los prismas siguen a la torre)
+  let hiddenT = null;
+  const applyVis = () => { group.visible = active && hiddenT !== TOWER; group1.visible = active && hiddenT !== 1; };
   return {
+    hideTower(t) { hiddenT = t; applyVis(); },
     setActive(on) {
       active = on;
-      group.visible = group1.visible = on;
+      applyVis();
       if (on) { buildList(); buildLegend(); refresh(); }
       else { hovered = null; select(null); canvas.style.cursor = ''; }
     },

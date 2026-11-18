@@ -379,9 +379,68 @@ document.getElementById('cam-reset').addEventListener('click', () => {
 showCam();
 applyCam();
 
-// Selector de torre: el punto de giro pasa al centro de la torre elegida (la cámara se desliza hasta ella)
+// Selector de torre: el punto de giro pasa al centro de la torre elegida (la cámara se desliza hasta ella).
+// Si la otra torre queda entre la cámara y la elegida, se oculta mientras estorba (updateOcclusion, cada fotograma).
 const focusBtns = [...document.querySelectorAll('#focus button')];
+let focusKey = 'all', occluded = null; // occluded: torre oculta ahora (1 o 2)
+const OTHER = { t1: { t: 2, key: 't2', root: l21G.scene }, t2: { t: 1, key: 't1', root: l16G.scene } };
+// Caja orientada de cada torre (la de menor área en planta, probando ángulos): una caja alineada a los ejes es muy holgada
+// en torres giradas y ocultaría la otra sin que tape nada.
+function obbOf(root) {
+  root.updateMatrixWorld(true);
+  const pts = [], v = new THREE.Vector3();
+  let y0 = Infinity, y1 = -Infinity;
+  root.traverse((o) => {
+    if (!o.isMesh || o.isInstancedMesh) return; // las instancias guardan su geometría en el origen: contarían como puntos falsos
+    const p = o.geometry.attributes.position;
+    for (let i = 0; i < p.count; i += 7) { v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); pts.push(v.x, v.z); y0 = Math.min(y0, v.y); y1 = Math.max(y1, v.y); }
+  });
+  let best = null;
+  for (let a = 0; a < 180; a += 3) {
+    const c = Math.cos(D2R(a)), s = Math.sin(D2R(a));
+    let u0 = Infinity, u1 = -Infinity, w0 = Infinity, w1 = -Infinity;
+    for (let i = 0; i < pts.length; i += 2) {
+      const u = pts[i] * c + pts[i + 1] * s, w = -pts[i] * s + pts[i + 1] * c;
+      if (u < u0) u0 = u; if (u > u1) u1 = u; if (w < w0) w0 = w; if (w > w1) w1 = w;
+    }
+    const area = (u1 - u0) * (w1 - w0);
+    if (!best || area < best.area) best = { c, s, area, u0, u1, w0, w1, y0, y1 };
+  }
+  return best;
+}
+const OBB = { t1: obbOf(l16G.scene), t2: obbOf(l21G.scene) };
+const occRay = new THREE.Ray(), occHit = new THREE.Vector3(), occBox = new THREE.Box3();
+const occCam = new THREE.Vector3(), occDir = new THREE.Vector3(), occPt = new THREE.Vector3();
+const toFrame = (b, x, y, z, out) => out.set(x * b.c + z * b.s, y, -x * b.s + z * b.c);
+function updateOcclusion() {
+  const o = OTHER[focusKey];
+  let hide = false;
+  if (o) {
+    // puntos de la torre elegida (centro y esquinas de su caja reducida): si el rayo de la cámara a alguno cruza la otra torre, estorba
+    const fb = OBB[focusKey], ob = OBB[o.key];
+    const cu = (fb.u0 + fb.u1) / 2, cw = (fb.w0 + fb.w1) / 2, cy = (fb.y0 + fb.y1) / 2;
+    const hu = (fb.u1 - fb.u0) * 0.35 / 2, hw = (fb.w1 - fb.w0) * 0.35 / 2, hy = (fb.y1 - fb.y0) * 0.35 / 2;
+    const m = occluded === o.t ? 8 : 2; // al ocultarse, margen extra para que no parpadee en el borde
+    occBox.min.set(ob.u0 - m, ob.y0 - m, ob.w0 - m); occBox.max.set(ob.u1 + m, ob.y1 + m, ob.w1 + m);
+    toFrame(ob, camera.position.x, camera.position.y, camera.position.z, occCam);
+    for (let i = 0; i < 9 && !hide; i++) {
+      const u = cu + (i === 0 ? 0 : (i & 1 ? hu : -hu)), w = cw + (i === 0 ? 0 : (i & 4 ? hw : -hw)), y = cy + (i === 0 ? 0 : (i & 2 ? hy : -hy));
+      toFrame(ob, u * fb.c - w * fb.s, y, u * fb.s + w * fb.c, occPt); // de la caja de la torre elegida al marco de la otra
+      const d = occPt.distanceTo(occCam);
+      occRay.set(occCam, occDir.copy(occPt).sub(occCam).normalize());
+      hide = !!occRay.intersectBox(occBox, occHit) && occHit.distanceTo(occCam) < d;
+    }
+  }
+  const want = hide ? o.t : null;
+  if (want === occluded) return;
+  if (occluded) OTHER[occluded === 2 ? 't1' : 't2'].root.visible = true;
+  if (want) o.root.visible = false;
+  occluded = want;
+  units.hideTower(want);
+  renderer.shadowMap.needsUpdate = true;
+}
 for (const b of focusBtns) b.addEventListener('click', () => {
+  focusKey = b.dataset.f;
   towersPivot = FOCUS[b.dataset.f];
   glideToTowers = true;
   focusBtns.forEach((x) => x.classList.toggle('on', x === b));
@@ -407,6 +466,7 @@ function frame() {
   orbitKeys(dt);
   units.update();
   orbit.update();
+  updateOcclusion();
   if (pivotMark.visible) {
     pivotMark.position.copy(orbit.target);
     pivotMark.scale.setScalar(camera.position.distanceTo(orbit.target) * 0.012);
@@ -417,7 +477,7 @@ function frame() {
 setMode('orbit');
 document.getElementById('load').style.opacity = 0;
 setTimeout(() => document.getElementById('load').remove(), 700);
-window.__scene = { THREE, scene, camera, renderer, orbit, setMode, setHour };
+window.__scene = { THREE, scene, camera, renderer, orbit, setMode, setHour, towers: { t1: l16G.scene, t2: l21G.scene } };
 frame();
 
 // Medición en equipos reales: abrir con ?fps para ver fluidez, carga y carga gráfica en pantalla.
