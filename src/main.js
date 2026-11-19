@@ -242,6 +242,14 @@ const FOCUS = {
   t1: l16Box.getCenter(new THREE.Vector3()),
   t2: towerBox.getCenter(new THREE.Vector3()),
 };
+// Texturas de los materiales fantasma: las texturas KTX2 de los originales llegan después de crear las copias, así que
+// cada fotograma se copian a la copia las que cambien.
+const GHOST_OPACITY = 0.5;
+const GHOST_SLOTS = ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'bumpMap', 'emissiveMap'];
+const ghostPairs = []; // [material original, copia fantasma]
+function syncGhost() {
+  for (const [m, g] of ghostPairs) for (const k of GHOST_SLOTS) if (g[k] !== m[k]) { g[k] = m[k]; g.needsUpdate = true; }
+}
 // Cota del piso de cada foco (base de la torre, o el terreno en la Torre 3): la altura del panel Cámara se mide desde ahí.
 // Las cajas de las torres llevan 3 m de margen.
 const FOCUS_BASE = {
@@ -259,12 +267,32 @@ const FOCUS_BASE = {
   const hit = new THREE.Raycaster(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0)).intersectObjects([...earthMeshes, ...pavedMeshes], false)[0];
   FOCUS.t3 = new THREE.Vector3(x, hit ? hit.point.y + (FOCUS.t2.y - (towerBox.min.y + 3)) : FOCUS.t2.y, z); // towerBox lleva 3 m de margen
   FOCUS_BASE.t3 = hit ? hit.point.y : towerBox.min.y + 3;
-  // Torre 3 no disponible: copia de la Torre 1 (misma orientación) en gris, apoyada en el terreno, centrada en su pivote.
-  // Comparte la geometría con la Torre 1; solo cambia el material.
+  // Torre 3 no disponible: copia de la Torre 1 (misma orientación y mismos colores) en versión fantasma, semitransparente,
+  // apoyada en el terreno y centrada en su pivote. Comparte la geometría; los materiales son copias translúcidas.
   const c1 = l16Box.getCenter(new THREE.Vector3());
-  const grey = new THREE.MeshStandardMaterial({ color: 0xa6a6a2, roughness: 0.95, metalness: 0 });
   const t3 = l16G.scene.clone(true);
-  t3.traverse((o) => { if (o.isMesh) { o.material = grey; o.castShadow = o.receiveShadow = true; } });
+  const copies = new Map();
+  const ghostOf = (m) => {
+    if (!copies.has(m)) {
+      const g = m.clone();
+      g.clippingPlanes = m.clippingPlanes; // clone() duplica el plano de corte (queda en su valor inicial, 40 m) y recortaría la torre
+      g.transparent = true; g.opacity = m.opacity * GHOST_OPACITY; g.depthWrite = false;
+      copies.set(m, g); ghostPairs.push([m, g]);
+    }
+    return copies.get(m);
+  };
+  // Para que solo se vea la superficie más cercana (y no el interior apilado), cada malla lleva una pasada previa que solo
+  // escribe profundidad; la torre translúcida se dibuja después y solo pasa la prueba de profundidad en esa superficie.
+  const prepass = new THREE.MeshBasicMaterial({ colorWrite: false, polygonOffset: true, polygonOffsetFactor: 1, polygonOffsetUnits: 1 });
+  const meshes = [];
+  t3.traverse((o) => { if (o.isMesh) meshes.push(o); });
+  for (const o of meshes) {
+    o.material = Array.isArray(o.material) ? o.material.map(ghostOf) : ghostOf(o.material);
+    o.castShadow = o.receiveShadow = false; // un fantasma no proyecta sombra
+    const p = o.isInstancedMesh ? Object.assign(new THREE.InstancedMesh(o.geometry, prepass, o.count), { instanceMatrix: o.instanceMatrix }) : new THREE.Mesh(o.geometry, prepass);
+    p.frustumCulled = o.frustumCulled;
+    o.add(p); // hija de la malla: hereda su transformación
+  }
   t3.position.add(new THREE.Vector3(x - c1.x, FOCUS_BASE.t3 - (l16Box.min.y + 3), z - c1.z));
   scene.add(t3);
 }
@@ -545,6 +573,7 @@ function frame() {
   }
   orbitKeys(dt);
   orbit.update();
+  syncGhost();
   updateOcclusion();
   if (pivotMark.visible) {
     pivotMark.position.copy(orbit.target);
