@@ -242,6 +242,16 @@ const FOCUS = {
   t1: l16Box.getCenter(new THREE.Vector3()),
   t2: towerBox.getCenter(new THREE.Vector3()),
 };
+// Torre 3 (futura, aún sin modelo): solo el pivote, más allá de la calle y en la misma alineación que las otras:
+// mismo eje (78°) y la misma separación que hay de la Torre 1 a la Torre 2, medida sobre w (perpendicular al eje).
+// La altura es la del terreno en ese punto más lo que el pivote de la Torre 2 está sobre su base.
+{
+  const a = THREE.MathUtils.degToRad(78), wx = -Math.sin(a), wz = Math.cos(a);
+  const dw = (FOCUS.t2.x - FOCUS.t1.x) * wx + (FOCUS.t2.z - FOCUS.t1.z) * wz;
+  const x = FOCUS.t2.x + dw * wx, z = FOCUS.t2.z + dw * wz;
+  const hit = new THREE.Raycaster(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0)).intersectObjects([...earthMeshes, ...pavedMeshes], false)[0];
+  FOCUS.t3 = new THREE.Vector3(x, hit ? hit.point.y + (FOCUS.t2.y - (towerBox.min.y + 3)) : FOCUS.t2.y, z); // towerBox lleva 3 m de margen
+}
 let towersPivot = FOCUS.all;
 let unitPivot = null; // centro del apartamento elegido: mientras exista, la cámara gira alrededor de él
 let glideToTowers = false;
@@ -274,13 +284,15 @@ function applyCam(az = null) {
 const ui = { orbit: document.getElementById('m-orbit'), units: document.getElementById('m-units') };
 // Elegir un apartamento lo convierte en el pivote del giro (tomas de dron); soltarlo vuelve al pivote de la torre.
 // Su torre pasa a ser la elegida, para que la otra se oculte si estorba.
+// el marcador se ve con el panel Cámara abierto, con un apartamento elegido o en la Torre 3 (que aún no tiene modelo)
+function showPivot() { return !camPanel.hidden || !!unitPivot || focusKey === 't3'; }
 function setUnitPivot(center, tower) {
   unitPivot = center;
   if (center) {
     focusKey = `t${tower}`;
     focusBtns.forEach((x) => x.classList.toggle('on', x.dataset.f === focusKey));
   }
-  pivotMark.visible = !camPanel.hidden || !!unitPivot;
+  pivotMark.visible = showPivot();
   glideToTowers = true;
 }
 const units = createUnits({ scene, camera, canvas, orbit, onPivot: setUnitPivot });
@@ -399,7 +411,7 @@ pivotMark.visible = false;
 scene.add(pivotMark);
 camBtn.addEventListener('click', () => {
   camPanel.hidden = !camPanel.hidden;
-  pivotMark.visible = !camPanel.hidden || !!unitPivot;
+  pivotMark.visible = showPivot();
   camBtn.classList.toggle('on', !camPanel.hidden);
   camBtn.setAttribute('aria-expanded', String(!camPanel.hidden));
   if (!camPanel.hidden) { CAM.az = Math.round(THREE.MathUtils.radToDeg(orbit.getAzimuthalAngle())); showCam(); }
@@ -478,7 +490,7 @@ for (const b of focusBtns) b.addEventListener('click', () => {
   focusKey = b.dataset.f;
   towersPivot = FOCUS[b.dataset.f];
   unitPivot = null; // elegir torre suelta el apartamento como pivote
-  pivotMark.visible = !camPanel.hidden;
+  pivotMark.visible = showPivot();
   glideToTowers = true;
   focusBtns.forEach((x) => x.classList.toggle('on', x === b));
 });
