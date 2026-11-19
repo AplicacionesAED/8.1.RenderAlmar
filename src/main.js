@@ -341,18 +341,41 @@ const camBtn = document.getElementById('camBtn'), camPanel = document.getElement
 // cada valor tiene deslizador y campo de texto numérico; los dos se mantienen iguales
 const camFields = ['dist', 'elev', 'az', 'mm'];
 const slider = (k) => document.getElementById(`cam-${k}`), field = (k) => document.getElementById(`cam-${k}-n`);
+// Altura de la cámara en metros sobre el pivote (orbit.target): dist · sen(elevación). No se guarda: se deriva de la
+// distancia y la elevación, y al editarla se traduce a elevación (con la distancia actual).
+const heightOf = () => Math.round(CAM.dist * Math.sin(D2R(CAM.elev)) * 10) / 10;
+let heightTyping = false; // mientras se escribe la altura no se reescribe su campo de texto
+function showHeight() {
+  slider('h').value = heightOf();
+  if (!heightTyping) field('h').value = heightOf();
+}
+function setHeight(raw) {
+  const h = Number(raw);
+  if (raw === '' || !Number.isFinite(h)) { showHeight(); return; }
+  setCam('elev', THREE.MathUtils.radToDeg(Math.asin(Math.min(1, Math.max(0, h / CAM.dist)))));
+}
 function showCam() {
   for (const k of camFields) slider(k).value = field(k).value = CAM[k];
+  showHeight();
 }
 function setCam(k, raw, from) {
-  const s = slider(k), v = Math.min(Number(s.max), Math.max(Number(s.min), Math.round(Number(raw))));
+  const q = k === 'elev' ? 10 : 1; // la elevación admite décimas para que la altura en metros sea precisa
+  const s = slider(k), v = Math.min(Number(s.max), Math.max(Number(s.min), Math.round(Number(raw) * q) / q));
   if (raw === '' || !Number.isFinite(v)) { field(k).value = CAM[k]; return; } // vacío o no numérico: vuelve al valor actual
   CAM[k] = v;
   if (from !== 'slider') s.value = v;
   if (from !== 'field') field(k).value = v; // mientras se escribe no se toca el texto
+  if (k === 'dist' || k === 'elev') showHeight();
   applyCam(k === 'az' ? CAM.az : null);
   try { localStorage.setItem('almar.cam', JSON.stringify(CAM)); } catch { /* sin almacenamiento */ }
 }
+slider('h').addEventListener('input', (e) => setHeight(e.target.value));
+field('h').addEventListener('input', (e) => {
+  const n = Number(e.target.value);
+  if (e.target.value === '' || !(n >= Number(slider('h').min) && n <= Number(slider('h').max))) return;
+  heightTyping = true; setHeight(n); heightTyping = false;
+});
+field('h').addEventListener('change', (e) => { setHeight(e.target.value); showHeight(); });
 for (const k of camFields) {
   slider(k).addEventListener('input', (e) => setCam(k, e.target.value, 'slider'));
   // al escribir se aplica cuando hay un número completo; al salir del campo o con Enter se ajusta al rango
