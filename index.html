@@ -56,7 +56,7 @@
   #legend b{margin-left:4px;opacity:.65}
   .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:middle}
   body.units #panel:not([hidden]){display:block}
-  #panel{position:fixed;right:16px;top:120px;width:230px;padding:16px 18px;max-height:calc(100vh - 200px);overflow-y:auto}
+  #panel{position:fixed;right:16px;top:190px;width:230px;padding:16px 18px;max-height:calc(100vh - 270px);overflow-y:auto}
   #panel .p-kind{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
   #panel .p-name{font-size:22px;margin:2px 0 10px}
   #panel dl{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:0 0 12px;font-size:13px}
@@ -98,7 +98,7 @@
 </div>
 <div id="campanel" class="glass" hidden>
   <h3>Cámara</h3>
-  <div class="cam-row"><label for="cam-dist-n">Distancia</label><span><input id="cam-dist-n" type="number" min="40" max="250" step="1" inputmode="numeric"> m</span><input id="cam-dist" type="range" min="40" max="250" step="1" aria-label="Distancia"></div>
+  <div class="cam-row"><label for="cam-dist-n">Distancia</label><span><input id="cam-dist-n" type="number" min="15" max="250" step="1" inputmode="numeric"> m</span><input id="cam-dist" type="range" min="15" max="250" step="1" aria-label="Distancia"></div>
   <div class="cam-row"><label for="cam-elev-n">Altura sobre el horizonte</label><span><input id="cam-elev-n" type="number" min="2" max="60" step="1" inputmode="numeric"> °</span><input id="cam-elev" type="range" min="2" max="60" step="1" aria-label="Altura sobre el horizonte"></div>
   <div class="cam-row"><label for="cam-az-n">Ángulo de giro</label><span><input id="cam-az-n" type="number" min="-180" max="180" step="1" inputmode="numeric"> °</span><input id="cam-az" type="range" min="-180" max="180" step="1" aria-label="Ángulo de giro"></div>
   <div class="cam-row"><label for="cam-mm-n">Lente</label><span><input id="cam-mm-n" type="number" min="14" max="85" step="1" inputmode="numeric"> mm</span><input id="cam-mm" type="range" min="14" max="85" step="1" aria-label="Lente"></div>

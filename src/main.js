@@ -243,6 +243,7 @@ const FOCUS = {
   t2: towerBox.getCenter(new THREE.Vector3()),
 };
 let towersPivot = FOCUS.all;
+let unitPivot = null; // centro del apartamento elegido: mientras exista, la cámara gira alrededor de él
 let glideToTowers = false;
 const orbit = new OrbitControls(camera, canvas);
 orbit.enabled = false;
@@ -271,7 +272,18 @@ function applyCam(az = null) {
   orbit.update();
 }
 const ui = { orbit: document.getElementById('m-orbit'), units: document.getElementById('m-units') };
-const units = createUnits({ scene, camera, canvas, orbit });
+// Elegir un apartamento lo convierte en el pivote del giro (tomas de dron); soltarlo vuelve al pivote de la torre.
+// Su torre pasa a ser la elegida, para que la otra se oculte si estorba.
+function setUnitPivot(center, tower) {
+  unitPivot = center;
+  if (center) {
+    focusKey = `t${tower}`;
+    focusBtns.forEach((x) => x.classList.toggle('on', x.dataset.f === focusKey));
+  }
+  pivotMark.visible = !camPanel.hidden || !!unitPivot;
+  glideToTowers = true;
+}
+const units = createUnits({ scene, camera, canvas, orbit, onPivot: setUnitPivot });
 let mode = null;
 function setMode(m) {
   const first = mode === null;
@@ -364,7 +376,7 @@ pivotMark.visible = false;
 scene.add(pivotMark);
 camBtn.addEventListener('click', () => {
   camPanel.hidden = !camPanel.hidden;
-  pivotMark.visible = !camPanel.hidden;
+  pivotMark.visible = !camPanel.hidden || !!unitPivot;
   camBtn.classList.toggle('on', !camPanel.hidden);
   camBtn.setAttribute('aria-expanded', String(!camPanel.hidden));
   if (!camPanel.hidden) { CAM.az = Math.round(THREE.MathUtils.radToDeg(orbit.getAzimuthalAngle())); showCam(); }
@@ -373,7 +385,7 @@ document.getElementById('cam-reset').addEventListener('click', () => {
   CAM = { ...CAM_DEFAULT };
   try { localStorage.removeItem('almar.cam'); } catch { /* sin almacenamiento */ }
   showCam();
-  orbit.target.copy(towersPivot);
+  orbit.target.copy(unitPivot ?? towersPivot);
   applyCam(CAM.az);
 });
 showCam();
@@ -442,6 +454,8 @@ function updateOcclusion() {
 for (const b of focusBtns) b.addEventListener('click', () => {
   focusKey = b.dataset.f;
   towersPivot = FOCUS[b.dataset.f];
+  unitPivot = null; // elegir torre suelta el apartamento como pivote
+  pivotMark.visible = !camPanel.hidden;
   glideToTowers = true;
   focusBtns.forEach((x) => x.classList.toggle('on', x === b));
 });
@@ -456,15 +470,19 @@ setHour(+hourIn.value);
 showHour(+hourIn.value);
 
 const clock = new THREE.Clock();
+const glideStep = new THREE.Vector3();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (hourPending !== null) { setHour(hourPending); hourPending = null; } // una vez por fotograma como máximo
   if (glideToTowers) { // el punto de giro vuelve a las torres en ~0.4 s, sin salto de cámara
-    orbit.target.lerp(towersPivot, 1 - Math.pow(0.0005, dt));
-    if (orbit.target.distanceTo(towersPivot) < 0.05) glideToTowers = false;
+    // se mueven juntos el pivote y la cámara, así el ángulo y la distancia elegidos se conservan
+    const p = unitPivot ?? towersPivot;
+    glideStep.copy(p).sub(orbit.target).multiplyScalar(1 - Math.pow(0.0005, dt));
+    orbit.target.add(glideStep);
+    camera.position.add(glideStep);
+    if (orbit.target.distanceTo(p) < 0.05) glideToTowers = false;
   }
   orbitKeys(dt);
-  units.update();
   orbit.update();
   updateOcclusion();
   if (pivotMark.visible) {

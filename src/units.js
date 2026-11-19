@@ -32,7 +32,8 @@ const planUrl = (u) => `${almar.planBase}${almar.torres[u.t].carpeta}${u.p}`;
 // panoramas del apartamento: los de su unidad, si no los de su tipo, si no los de por defecto
 const panosOf = (u) => interiores.porUnidad[`${u.t}-${u.n}`] ?? interiores.porTipo[u.tipo] ?? interiores.porDefecto;
 
-export function createUnits({ scene, camera, canvas, orbit }) {
+// onPivot(centro, torre): el apartamento elegido pasa a ser el punto de giro de la cámara; onPivot(null) lo suelta
+export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
   const hub1 = (n) => almar.unidades.find((u) => u.t === 1 && u.n === n);
   const t1 = l16.units.map((a) => ({ t: 1, n: a.n, f: a.f, s: hub1(a.n)?.s ?? 'Pendiente', g: a.g, geo: a,
     area: (a.u[1] - a.u[0]) * (a.w[1] - a.w[0]) }));
@@ -41,7 +42,7 @@ export function createUnits({ scene, camera, canvas, orbit }) {
   const legendEl = document.getElementById('legend');
   const panel = document.getElementById('panel');
 
-  let active = false, selected = null, hovered = null, filter = null, statusMode = false, flyTo = null;
+  let active = false, selected = null, hovered = null, filter = null, statusMode = false;
 
   // Un prisma por apartamento (rectángulo con su terraza, de la losa del piso a la del siguiente)
   const group = new THREE.Group();
@@ -146,14 +147,12 @@ export function createUnits({ scene, camera, canvas, orbit }) {
     document.getElementById('p-close').onclick = () => select(null);
   }
 
-  function select(u, fly = false) {
+  function select(u) {
     selected = u;
     refresh();
     showPanel(u);
-    if (u && fly) {
-      const rec = meshes.get(key(u));
-      flyTo = new THREE.Box3().setFromObject(rec.mesh).getCenter(new THREE.Vector3());
-    }
+    if (u) onPivot?.(new THREE.Box3().setFromObject(meshes.get(key(u)).mesh).getCenter(new THREE.Vector3()), u.t);
+    else onPivot?.(null);
     listEl.querySelectorAll('button').forEach((b) => b.classList.toggle('on', !!u && b.dataset.k === key(u)));
   }
 
@@ -166,7 +165,7 @@ export function createUnits({ scene, camera, canvas, orbit }) {
         <button data-k="${key(u)}" style="--st:${STATUS[u.s].css}" title="${tip(u)}" ${filter && filter !== u.s ? 'hidden' : ''}>${u.n}</button>`).join('')}</div>`;
     }).join('')).join('');
     listEl.querySelectorAll('button').forEach((b) => {
-      b.onclick = () => select(units.find((u) => key(u) === b.dataset.k), true);
+      b.onclick = () => select(units.find((u) => key(u) === b.dataset.k));
     });
   }
 
@@ -223,12 +222,6 @@ export function createUnits({ scene, camera, canvas, orbit }) {
       applyVis();
       if (on) { buildList(); buildLegend(); refresh(); }
       else { hovered = null; select(null); canvas.style.cursor = ''; }
-    },
-    // acerca suavemente el punto de mira al apartamento elegido
-    update() {
-      if (!flyTo) return;
-      orbit.target.lerp(flyTo, 0.12);
-      if (orbit.target.distanceTo(flyTo) < 0.05) flyTo = null;
     },
     center: () => new THREE.Box3().setFromObject(group).getCenter(new THREE.Vector3()),
   };
