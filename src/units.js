@@ -32,7 +32,7 @@ const planUrl = (u) => `${almar.planBase}${almar.torres[u.t].carpeta}${u.p}`;
 // panoramas del apartamento: los de su unidad, si no los de su tipo, si no los de por defecto
 const panosOf = (u) => interiores.porUnidad[`${u.t}-${u.n}`] ?? interiores.porTipo[u.tipo] ?? interiores.porDefecto;
 
-// onPivot(centro, torre): el apartamento elegido pasa a ser el punto de giro de la cámara; onPivot(null) lo suelta
+// onPivot(centro, torre, cotaPiso): el apartamento elegido pasa a ser el punto de giro de la cámara; onPivot(null) lo suelta
 export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
   const hub1 = (n) => almar.unidades.find((u) => u.t === 1 && u.n === n);
   const t1 = l16.units.map((a) => ({ t: 1, n: a.n, f: a.f, s: hub1(a.n)?.s ?? 'Pendiente', g: a.g, geo: a,
@@ -151,8 +151,10 @@ export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
     selected = u;
     refresh();
     showPanel(u);
-    if (u) onPivot?.(new THREE.Box3().setFromObject(meshes.get(key(u)).mesh).getCenter(new THREE.Vector3()), u.t);
-    else onPivot?.(null);
+    if (u) {
+      const box = new THREE.Box3().setFromObject(meshes.get(key(u)).mesh);
+      onPivot?.(box.getCenter(new THREE.Vector3()), u.t, box.min.y); // min.y: cota del piso del apartamento
+    } else onPivot?.(null);
     listEl.querySelectorAll('button').forEach((b) => b.classList.toggle('on', !!u && b.dataset.k === key(u)));
   }
 

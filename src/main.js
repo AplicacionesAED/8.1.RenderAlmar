@@ -242,6 +242,13 @@ const FOCUS = {
   t1: l16Box.getCenter(new THREE.Vector3()),
   t2: towerBox.getCenter(new THREE.Vector3()),
 };
+// Cota del piso de cada foco (base de la torre, o el terreno en la Torre 3): la altura del panel Cámara se mide desde ahí.
+// Las cajas de las torres llevan 3 m de margen.
+const FOCUS_BASE = {
+  all: Math.min(towerBox.min.y, l16Box.min.y) + 3,
+  t1: l16Box.min.y + 3,
+  t2: towerBox.min.y + 3,
+};
 // Torre 3 (futura, aún sin modelo): solo el pivote, más allá de la calle y en la misma alineación que las otras:
 // mismo eje (78°) y la misma separación que hay de la Torre 1 a la Torre 2, medida sobre w (perpendicular al eje).
 // La altura es la del terreno en ese punto más lo que el pivote de la Torre 2 está sobre su base.
@@ -251,9 +258,12 @@ const FOCUS = {
   const x = FOCUS.t2.x + dw * wx, z = FOCUS.t2.z + dw * wz;
   const hit = new THREE.Raycaster(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0)).intersectObjects([...earthMeshes, ...pavedMeshes], false)[0];
   FOCUS.t3 = new THREE.Vector3(x, hit ? hit.point.y + (FOCUS.t2.y - (towerBox.min.y + 3)) : FOCUS.t2.y, z); // towerBox lleva 3 m de margen
+  FOCUS_BASE.t3 = hit ? hit.point.y : towerBox.min.y + 3;
 }
 let towersPivot = FOCUS.all;
 let unitPivot = null; // centro del apartamento elegido: mientras exista, la cámara gira alrededor de él
+let unitBase = null;  // cota del piso de ese apartamento
+let focusKey = 'all'; // foco elegido: all, t1, t2 o t3
 let glideToTowers = false;
 const orbit = new OrbitControls(camera, canvas);
 orbit.enabled = false;
@@ -286,13 +296,15 @@ const ui = { orbit: document.getElementById('m-orbit'), units: document.getEleme
 // Su torre pasa a ser la elegida, para que la otra se oculte si estorba.
 // el marcador se ve con el panel Cámara abierto, con un apartamento elegido o en la Torre 3 (que aún no tiene modelo)
 function showPivot() { return !camPanel.hidden || !!unitPivot || focusKey === 't3'; }
-function setUnitPivot(center, tower) {
+function setUnitPivot(center, tower, floorY) {
   unitPivot = center;
+  unitBase = center ? floorY : null;
   if (center) {
     focusKey = `t${tower}`;
     focusBtns.forEach((x) => x.classList.toggle('on', x.dataset.f === focusKey));
   }
   pivotMark.visible = showPivot();
+  showHeight();
   glideToTowers = true;
 }
 const units = createUnits({ scene, camera, canvas, orbit, onPivot: setUnitPivot });
@@ -353,9 +365,12 @@ const camBtn = document.getElementById('camBtn'), camPanel = document.getElement
 // cada valor tiene deslizador y campo de texto numérico; los dos se mantienen iguales
 const camFields = ['dist', 'elev', 'az', 'mm'];
 const slider = (k) => document.getElementById(`cam-${k}`), field = (k) => document.getElementById(`cam-${k}-n`);
-// Altura de la cámara en metros sobre el pivote (orbit.target): dist · sen(elevación). No se guarda: se deriva de la
-// distancia y la elevación, y al editarla se traduce a elevación (con la distancia actual).
-const heightOf = () => Math.round(CAM.dist * Math.sin(D2R(CAM.elev)) * 10) / 10;
+// Altura de la cámara en metros sobre el piso (del apartamento elegido o de la base de la torre): es lo que debe subir
+// el dron. Cota de la cámara = cota del pivote + dist · sen(elevación); la altura es esa cota menos la del piso.
+// No se guarda: se deriva, y al editarla se traduce a elevación (con la distancia actual).
+const pivotNow = () => unitPivot ?? towersPivot;
+const floorNow = () => unitBase ?? FOCUS_BASE[focusKey];
+const heightOf = () => Math.round((pivotNow().y + CAM.dist * Math.sin(D2R(CAM.elev)) - floorNow()) * 10) / 10;
 let heightTyping = false; // mientras se escribe la altura no se reescribe su campo de texto
 function showHeight() {
   slider('h').value = heightOf();
@@ -364,7 +379,8 @@ function showHeight() {
 function setHeight(raw) {
   const h = Number(raw);
   if (raw === '' || !Number.isFinite(h)) { showHeight(); return; }
-  setCam('elev', THREE.MathUtils.radToDeg(Math.asin(Math.min(1, Math.max(0, h / CAM.dist)))));
+  const s = (h + floorNow() - pivotNow().y) / CAM.dist; // seno de la elevación necesaria
+  setCam('elev', THREE.MathUtils.radToDeg(Math.asin(Math.min(1, Math.max(0, s)))));
 }
 function showCam() {
   for (const k of camFields) slider(k).value = field(k).value = CAM[k];
@@ -429,7 +445,7 @@ applyCam();
 // Selector de torre: el punto de giro pasa al centro de la torre elegida (la cámara se desliza hasta ella).
 // Si la otra torre queda entre la cámara y la elegida, se oculta mientras estorba (updateOcclusion, cada fotograma).
 const focusBtns = [...document.querySelectorAll('#focus button')];
-let focusKey = 'all', occluded = null; // occluded: torre oculta ahora (1 o 2)
+let occluded = null; // torre oculta ahora (1 o 2)
 const OTHER = { t1: { t: 2, key: 't2', root: l21G.scene }, t2: { t: 1, key: 't1', root: l16G.scene } };
 // Caja orientada de cada torre (la de menor área en planta, probando ángulos): una caja alineada a los ejes es muy holgada
 // en torres giradas y ocultaría la otra sin que tape nada.
@@ -490,7 +506,9 @@ for (const b of focusBtns) b.addEventListener('click', () => {
   focusKey = b.dataset.f;
   towersPivot = FOCUS[b.dataset.f];
   unitPivot = null; // elegir torre suelta el apartamento como pivote
+  unitBase = null;
   pivotMark.visible = showPivot();
+  showHeight();
   glideToTowers = true;
   focusBtns.forEach((x) => x.classList.toggle('on', x === b));
 });
