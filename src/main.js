@@ -259,6 +259,14 @@ const FOCUS_BASE = {
   const hit = new THREE.Raycaster(new THREE.Vector3(x, 200, z), new THREE.Vector3(0, -1, 0)).intersectObjects([...earthMeshes, ...pavedMeshes], false)[0];
   FOCUS.t3 = new THREE.Vector3(x, hit ? hit.point.y + (FOCUS.t2.y - (towerBox.min.y + 3)) : FOCUS.t2.y, z); // towerBox lleva 3 m de margen
   FOCUS_BASE.t3 = hit ? hit.point.y : towerBox.min.y + 3;
+  // Torre 3 no disponible: copia de la Torre 1 (misma orientación) en gris, apoyada en el terreno, centrada en su pivote.
+  // Comparte la geometría con la Torre 1; solo cambia el material.
+  const c1 = l16Box.getCenter(new THREE.Vector3());
+  const grey = new THREE.MeshStandardMaterial({ color: 0xa6a6a2, roughness: 0.95, metalness: 0 });
+  const t3 = l16G.scene.clone(true);
+  t3.traverse((o) => { if (o.isMesh) { o.material = grey; o.castShadow = o.receiveShadow = true; } });
+  t3.position.add(new THREE.Vector3(x - c1.x, FOCUS_BASE.t3 - (l16Box.min.y + 3), z - c1.z));
+  scene.add(t3);
 }
 let towersPivot = FOCUS.all;
 let unitPivot = null; // centro del apartamento elegido: mientras exista, la cámara gira alrededor de él
