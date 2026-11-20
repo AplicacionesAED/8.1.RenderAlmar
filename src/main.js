@@ -317,8 +317,18 @@ orbit.dampingFactor = 0.08;
 const D2R = THREE.MathUtils.degToRad;
 const CAM_DEFAULT = { dist: 100, elev: 10, az: -70, mm: 23 }; // 23 mm ≈ los 55° verticales de la cámara del recorrido
 const mmToFov = (mm) => THREE.MathUtils.radToDeg(2 * Math.atan(24 / (2 * mm))); // sensor de 36 x 24 mm
-let CAM = { ...CAM_DEFAULT };
-try { Object.assign(CAM, JSON.parse(localStorage.getItem('almar.cam') || '{}')); } catch { /* sin almacenamiento */ }
+// Cada pivote (Todas, cada torre y cada apartamento) guarda su propia configuración de cámara en CAMS. La primera vez que
+// se visita parte de la configuración que se tenía; después es independiente. CAM es la del pivote actual (camKey).
+const CAMS = {};
+try { Object.assign(CAMS, JSON.parse(localStorage.getItem('almar.cams') || '{}')); } catch { /* sin almacenamiento */ }
+for (const k of Object.keys(CAMS)) CAMS[k] = { ...CAM_DEFAULT, ...CAMS[k] };
+if (!CAMS.all) { // configuración única de versiones anteriores
+  CAMS.all = { ...CAM_DEFAULT };
+  try { Object.assign(CAMS.all, JSON.parse(localStorage.getItem('almar.cam') || '{}')); } catch { /* sin almacenamiento */ }
+}
+let CAM = CAMS.all;
+let camKey = 'all';
+const saveCams = () => { try { localStorage.setItem('almar.cams', JSON.stringify(CAMS)); } catch { /* sin almacenamiento */ } };
 orbit.enableZoom = false;
 orbit.screenSpacePanning = false;     // desplazar sobre el plano del suelo
 // aplica el encuadre: fija distancia y altura del giro; con az, además coloca la cámara en ese ángulo
@@ -333,18 +343,36 @@ function applyCam(az = null) {
   camera.position.copy(orbit.target).add(new THREE.Vector3().setFromSphericalCoords(CAM.dist, polar, theta));
   orbit.update();
 }
+// Pasa a la configuración de cámara de otro pivote. La cámara se desliza hasta su distancia, inclinación y ángulo
+// (glideCam); el ángulo con el que se deja el pivote actual se guarda en su configuración.
+let glideCam = null;
+function switchCam(key) {
+  if (key === camKey) return;
+  CAM.az = Math.round(THREE.MathUtils.radToDeg(orbit.getAzimuthalAngle()));
+  camKey = key;
+  CAM = CAMS[key] ??= { ...CAM };
+  const polar = D2R(90 - CAM.elev);
+  orbit.minDistance = orbit.maxDistance = CAM.dist;
+  orbit.minPolarAngle = orbit.maxPolarAngle = polar;
+  camera.fov = mmToFov(CAM.mm);
+  camera.updateProjectionMatrix();
+  glideCam = (unitPivot ?? towersPivot).clone().add(new THREE.Vector3().setFromSphericalCoords(CAM.dist, polar, D2R(CAM.az)));
+  showCam();
+  saveCams();
+}
 const ui = { orbit: document.getElementById('m-orbit'), units: document.getElementById('m-units') };
 // Elegir un apartamento lo convierte en el pivote del giro (tomas de dron); soltarlo vuelve al pivote de la torre.
 // Su torre pasa a ser la elegida, para que la otra se oculte si estorba.
 // el marcador se ve con el panel Cámara abierto, con un apartamento elegido o en la Torre 3 (que aún no tiene modelo)
 function showPivot() { return !camPanel.hidden || !!unitPivot || focusKey === 't3'; }
-function setUnitPivot(center, tower, floorY) {
+function setUnitPivot(center, tower, floorY, unitKey) {
   unitPivot = center;
   unitBase = center ? floorY : null;
   if (center) {
     focusKey = `t${tower}`;
     focusBtns.forEach((x) => x.classList.toggle('on', x.dataset.f === focusKey));
   }
+  switchCam(center ? `u${unitKey}` : focusKey); // cada apartamento tiene su cámara; al soltarlo vuelve la de su torre
   pivotMark.visible = showPivot();
   showHeight();
   glideToTowers = true;
@@ -451,7 +479,7 @@ function setCam(k, raw, from) {
   }
   if (k === 'dist' || k === 'elev') showHeight();
   applyCam(k === 'az' ? CAM.az : null);
-  try { localStorage.setItem('almar.cam', JSON.stringify(CAM)); } catch { /* sin almacenamiento */ }
+  saveCams();
 }
 slider('h').addEventListener('input', (e) => setHeight(e.target.value));
 field('h').addEventListener('input', (e) => {
@@ -489,8 +517,8 @@ camBtn.addEventListener('click', () => {
   if (!camPanel.hidden) { CAM.az = Math.round(THREE.MathUtils.radToDeg(orbit.getAzimuthalAngle())); showCam(); }
 });
 document.getElementById('cam-reset').addEventListener('click', () => {
-  CAM = { ...CAM_DEFAULT };
-  try { localStorage.removeItem('almar.cam'); } catch { /* sin almacenamiento */ }
+  Object.assign(CAM, CAM_DEFAULT); // restablece solo la cámara del pivote actual
+  saveCams();
   showCam();
   orbit.target.copy(unitPivot ?? towersPivot);
   applyCam(CAM.az);
@@ -563,6 +591,7 @@ for (const b of focusBtns) b.addEventListener('click', () => {
   towersPivot = FOCUS[b.dataset.f];
   unitPivot = null; // elegir torre suelta el apartamento como pivote
   unitBase = null;
+  switchCam(focusKey); // cada torre (y "Todas") tiene su propia cámara
   pivotMark.visible = showPivot();
   showHeight();
   glideToTowers = true;
@@ -586,10 +615,15 @@ function frame() {
   if (glideToTowers) { // el punto de giro vuelve a las torres en ~0.4 s, sin salto de cámara
     // se mueven juntos el pivote y la cámara, así el ángulo y la distancia elegidos se conservan
     const p = unitPivot ?? towersPivot;
-    glideStep.copy(p).sub(orbit.target).multiplyScalar(1 - Math.pow(0.0005, dt));
+    const k = 1 - Math.pow(0.0005, dt);
+    glideStep.copy(p).sub(orbit.target).multiplyScalar(k);
     orbit.target.add(glideStep);
-    camera.position.add(glideStep);
-    if (orbit.target.distanceTo(p) < 0.05) glideToTowers = false;
+    if (glideCam) camera.position.lerp(glideCam, k); // cambio de pivote: la cámara va a su propia configuración
+    else camera.position.add(glideStep);
+    if (orbit.target.distanceTo(p) < 0.05) {
+      glideToTowers = false;
+      if (glideCam) { camera.position.copy(glideCam); glideCam = null; }
+    }
   }
   orbitKeys(dt);
   orbit.update();

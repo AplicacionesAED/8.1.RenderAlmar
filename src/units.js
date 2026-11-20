@@ -153,7 +153,7 @@ export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
     showPanel(u);
     if (u) {
       const box = new THREE.Box3().setFromObject(meshes.get(key(u)).mesh);
-      onPivot?.(box.getCenter(new THREE.Vector3()), u.t, box.min.y); // min.y: cota del piso del apartamento
+      onPivot?.(box.getCenter(new THREE.Vector3()), u.t, box.min.y, key(u)); // min.y: cota del piso del apartamento
     } else onPivot?.(null);
     listEl.querySelectorAll('button').forEach((b) => b.classList.toggle('on', !!u && b.dataset.k === key(u)));
   }
