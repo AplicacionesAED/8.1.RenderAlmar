@@ -295,7 +295,10 @@ const FOCUS_BASE = {
   }
   t3.position.add(new THREE.Vector3(x - c1.x, FOCUS_BASE.t3 - (l16Box.min.y + 3), z - c1.z));
   scene.add(t3);
-  // "Todas": pivote en el centro entre las tres torres (promedio de sus centros) y piso en la base más baja
+  // Los pivotes de torre quedan a nivel del terreno (base de cada torre), no a media altura
+  FOCUS.t1.y = FOCUS_BASE.t1; FOCUS.t2.y = FOCUS_BASE.t2; FOCUS.t3.y = FOCUS_BASE.t3;
+  // "Todas": pivote en el centro entre las tres torres (promedio de sus pivotes, a nivel del terreno); el piso para medir
+  // la altura es la base más baja
   FOCUS.all = new THREE.Vector3().add(FOCUS.t1).add(FOCUS.t2).add(FOCUS.t3).divideScalar(3);
   FOCUS_BASE.all = Math.min(FOCUS_BASE.t1, FOCUS_BASE.t2, FOCUS_BASE.t3);
 }
