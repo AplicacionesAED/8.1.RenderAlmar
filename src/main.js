@@ -295,6 +295,9 @@ const FOCUS_BASE = {
   }
   t3.position.add(new THREE.Vector3(x - c1.x, FOCUS_BASE.t3 - (l16Box.min.y + 3), z - c1.z));
   scene.add(t3);
+  // "Todas": pivote en el centro entre las tres torres (promedio de sus centros) y piso en la base más baja
+  FOCUS.all = new THREE.Vector3().add(FOCUS.t1).add(FOCUS.t2).add(FOCUS.t3).divideScalar(3);
+  FOCUS_BASE.all = Math.min(FOCUS_BASE.t1, FOCUS_BASE.t2, FOCUS_BASE.t3);
 }
 let towersPivot = FOCUS.all;
 let unitPivot = null; // centro del apartamento elegido: mientras exista, la cámara gira alrededor de él
@@ -403,10 +406,15 @@ const camFields = ['dist', 'elev', 'az', 'mm'];
 const slider = (k) => document.getElementById(`cam-${k}`), field = (k) => document.getElementById(`cam-${k}-n`);
 // Altura de la cámara en metros sobre el piso (del apartamento elegido o de la base de la torre): es lo que debe subir
 // el dron. Cota de la cámara = cota del pivote + dist · sen(elevación); la altura es esa cota menos la del piso.
-// No se guarda: se deriva, y al editarla se traduce a elevación (con la distancia actual).
+// No se guarda: se deriva de la distancia y la inclinación. Cámara que mira al pivote: altura = distancia · sen(inclinación),
+// así que las tres están ligadas y una de ellas tiene que absorber el cambio. Altura e inclinación son independientes
+// entre sí: al mover una, la otra se queda y es la distancia la que se ajusta (hKeep: altura sobre el pivote que se
+// conserva al mover la inclinación). Mover la distancia, en cambio, mantiene la inclinación y cambia la altura.
 const pivotNow = () => unitPivot ?? towersPivot;
 const floorNow = () => unitBase ?? FOCUS_BASE[focusKey];
 const heightOf = () => Math.round((pivotNow().y + CAM.dist * Math.sin(D2R(CAM.elev)) - floorNow()) * 10) / 10;
+let hKeep = null; // altura sobre el pivote (m) que se conserva al cambiar la inclinación
+const holdHeight = () => { hKeep = CAM.dist * Math.sin(D2R(CAM.elev)); };
 let heightTyping = false; // mientras se escribe la altura no se reescribe su campo de texto
 function showHeight() {
   slider('h').value = heightOf();
@@ -415,20 +423,29 @@ function showHeight() {
 function setHeight(raw) {
   const h = Number(raw);
   if (raw === '' || !Number.isFinite(h)) { showHeight(); return; }
-  const s = (h + floorNow() - pivotNow().y) / CAM.dist; // seno de la elevación necesaria
-  setCam('elev', THREE.MathUtils.radToDeg(Math.asin(Math.min(1, Math.max(0, s)))));
+  hKeep = Math.max(0.3, h + floorNow() - pivotNow().y); // altura pedida sobre el pivote (mínimo 0,3 m)
+  setCam('dist', hKeep / Math.sin(D2R(CAM.elev)), 'height'); // misma inclinación: se ajusta la distancia
+  holdHeight(); // si la distancia llegó a su límite, se conserva la altura realmente alcanzada
 }
 function showCam() {
   for (const k of camFields) slider(k).value = field(k).value = CAM[k];
+  holdHeight();
   showHeight();
 }
 function setCam(k, raw, from) {
-  const q = k === 'elev' ? 10 : 1; // la elevación admite décimas para que la altura en metros sea precisa
+  const q = k === 'az' || k === 'mm' ? 1 : 10; // distancia e inclinación admiten décimas para que la altura en metros sea precisa
   const s = slider(k), v = Math.min(Number(s.max), Math.max(Number(s.min), Math.round(Number(raw) * q) / q));
   if (raw === '' || !Number.isFinite(v)) { field(k).value = CAM[k]; return; } // vacío o no numérico: vuelve al valor actual
   CAM[k] = v;
   if (from !== 'slider') s.value = v;
   if (from !== 'field') field(k).value = v; // mientras se escribe no se toca el texto
+  if (k === 'dist' && from !== 'height') holdHeight(); // mover la distancia cambia la altura (misma inclinación)
+  if (k === 'elev') { // misma altura: la distancia se ajusta (dentro de su rango)
+    if (hKeep === null) holdHeight();
+    const ds = slider('dist');
+    CAM.dist = Math.min(Number(ds.max), Math.max(Number(ds.min), Math.round(hKeep / Math.sin(D2R(v)) * 10) / 10));
+    ds.value = CAM.dist; field('dist').value = CAM.dist;
+  }
   if (k === 'dist' || k === 'elev') showHeight();
   applyCam(k === 'az' ? CAM.az : null);
   try { localStorage.setItem('almar.cam', JSON.stringify(CAM)); } catch { /* sin almacenamiento */ }
