@@ -82,6 +82,7 @@ export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: 0xffffff, toneMapped: false }));
     edges.visible = false;
     edges.renderOrder = 4;
+    mesh.layers.set(1); edges.layers.set(1); // capa 1: la órbita realista dibuja solo los prismas sobre la foto
     (u.t === 1 ? group1 : group).add(mesh, edges);
     meshes.set(key(u), { u, mesh, edges, mat });
   }
@@ -189,6 +190,7 @@ export function createUnits({ scene, camera, canvas, orbit, onPivot }) {
 
   // clic y cursor sobre los prismas (el rayo ignora si se ven o no; con filtro solo cuentan los mostrados)
   const ray = new THREE.Raycaster();
+  ray.layers.set(1);
   const ndc = new THREE.Vector2();
   function pick(ev) {
     const r = canvas.getBoundingClientRect();

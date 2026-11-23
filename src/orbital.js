@@ -1,0 +1,121 @@
+import * as THREE from 'three';
+
+// Órbita realista: fondo = fotos renderizadas en Twinmotion (72 vistas cada 5°, ver public/orbital) y encima el IFC en vivo.
+// El IFC no se ve: solo escribe profundidad (para que los edificios tapen los prismas) y los prismas de apartamentos se
+// dibujan después, con la misma cámara de cada foto.
+//
+// Cámaras de Twinmotion (CAMARAS_ORBITALES_TM2025_2.csv) -> escena de la app. Sin rotación, solo desplazamiento:
+//   x = X + 68.729,  y = Z + 40.710,  z = Y - 274.899   (el centro de la órbita es el pivote "Todas")
+// La órbita es un círculo de R = 128.025 m alrededor de (X -62.971, Y 247.468); el ángulo 0 está al sur y crece al este;
+// Z 32.909 m, inclinación -10°, 55.1° de campo vertical, 16:9.
+const TM = { cx: -62.971, cy: 247.468, R: 128.025, z: 32.909, pitch: -10, fov: 55.1 }; // pitch -10 de Twinmotion; trim -1.1 = ajuste medido sobre la foto 000
+const OFF = { x: 68.729, y: 40.710, z: -274.899 };
+const FRAMES = [...Array(72).keys()].map((i) => i * 5).filter((a) => a !== 290); // falta la foto de 290° en la entrega
+const url = (a) => `/orbital/ALMAR_ORBITAL_${String(a).padStart(3, '0')}.jpg`;
+const params = new URLSearchParams(location.search);
+
+export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeave }) {
+  const img = document.getElementById('orbimg');
+  const info = document.getElementById('orbinfo');
+  const D2R = THREE.MathUtils.degToRad;
+  const state = { active: false, angle: 0, trim: Number(params.get('trim') ?? -1.1), loaded: new Set(), started: false };
+  // máscara de profundidad: invisible; con ?calib se ve el IFC en magenta translúcido para ajustar la alineación
+  const mask = params.has('calib')
+    ? new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.35, depthWrite: true })
+    : new THREE.MeshBasicMaterial({ colorWrite: false });
+
+  const nearest = (a) => FRAMES.reduce((b, f) => (Math.abs(((f - a + 540) % 360) - 180) < Math.abs(((b - a + 540) % 360) - 180) ? f : b), FRAMES[0]);
+
+  function poseFor(a) {
+    const r = D2R(a), yaw = D2R(-90 - a), pitch = D2R(TM.pitch + state.trim);
+    const pos = new THREE.Vector3(TM.cx + TM.R * Math.sin(r) + OFF.x, TM.z + OFF.y, TM.cy + TM.R * Math.cos(r) + OFF.z);
+    const dir = new THREE.Vector3(Math.cos(yaw) * Math.cos(pitch), Math.sin(pitch), Math.sin(yaw) * Math.cos(pitch));
+    return { pos, dir };
+  }
+
+  function showFrame(a) {
+    const f = nearest(a);
+    state.angle = f;
+    if (state.loaded.has(f)) img.src = url(f);
+    const { pos, dir } = poseFor(f);
+    camera.position.copy(pos);
+    camera.up.set(0, 1, 0);
+    camera.lookAt(pos.clone().add(dir));
+    info.textContent = `${f}° · arrastra o usa ← →` + (state.loaded.size < FRAMES.length ? ` · cargando ${state.loaded.size}/${FRAMES.length}` : '');
+  }
+
+  // la imagen y el lienzo comparten un rectángulo 16:9 centrado en la ventana, para que coincidan píxel a píxel
+  function layout() {
+    const w = Math.min(innerWidth, innerHeight * 16 / 9), h = w * 9 / 16;
+    const box = { left: `${(innerWidth - w) / 2}px`, top: `${(innerHeight - h) / 2}px`, width: `${w}px`, height: `${h}px` };
+    Object.assign(canvas.style, { inset: 'auto', ...box });
+    Object.assign(img.style, box);
+    renderer.setSize(w, h, false);
+    camera.aspect = 16 / 9;
+    camera.fov = TM.fov;
+    camera.updateProjectionMatrix();
+  }
+
+  function preload() {
+    if (state.started) return;
+    state.started = true;
+    // primero las más cercanas al ángulo actual, para poder girar enseguida
+    const order = [...FRAMES].sort((a, b) => Math.abs(a - state.angle) - Math.abs(b - state.angle));
+    for (const f of order) {
+      const im = new Image();
+      im.onload = () => { state.loaded.add(f); if (f === nearest(state.angle) || state.loaded.size === FRAMES.length) showFrame(state.angle); else info.textContent = `${state.angle}° · cargando ${state.loaded.size}/${FRAMES.length}`; };
+      im.src = url(f);
+    }
+  }
+
+  // arrastrar en horizontal gira; cada 4 px un ángulo de 1° (dos o tres fotos por barrido corto)
+  let dragX = null, acc = 0;
+  canvas.addEventListener('pointerdown', (e) => { if (state.active && e.button === 0) { dragX = e.clientX; acc = state.angle; } });
+  addEventListener('pointermove', (e) => {
+    if (!state.active || dragX === null) return;
+    acc -= (e.clientX - dragX) * 0.25; // arrastrar a la derecha: la cámara se mueve a la izquierda (ángulo menor)
+    dragX = e.clientX;
+    acc = ((acc % 360) + 360) % 360;
+    if (nearest(acc) !== state.angle) showFrame(acc);
+  });
+  addEventListener('pointerup', () => { dragX = null; });
+  addEventListener('keydown', (e) => {
+    if (!state.active) return;
+    if (e.code === 'ArrowLeft') showFrame(state.angle + 5);
+    if (e.code === 'ArrowRight') showFrame(state.angle - 5);
+  });
+
+  return {
+    get active() { return state.active; },
+    state,
+    layout,
+    enter() {
+      state.active = true;
+      onEnter?.();
+      document.body.classList.add('real');
+      layout();
+      preload();
+      showFrame(state.angle);
+    },
+    leave() {
+      state.active = false;
+      document.body.classList.remove('real');
+      canvas.style.cssText = '';
+      onLeave?.();
+    },
+    // pasada 1: IFC como máscara de profundidad (transparente); pasada 2: solo los prismas (capa 1) sobre esa profundidad
+    render() {
+      renderer.setClearColor(0x000000, 0);
+      camera.layers.set(0);
+      scene.overrideMaterial = mask;
+      renderer.autoClear = true;
+      renderer.render(scene, camera);
+      scene.overrideMaterial = null;
+      camera.layers.set(1);
+      renderer.autoClear = false;
+      renderer.render(scene, camera);
+      renderer.autoClear = true;
+      camera.layers.enable(0);
+    },
+  };
+}

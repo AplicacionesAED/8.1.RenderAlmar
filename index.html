@@ -22,6 +22,14 @@
             background:rgba(241,236,226,.92);border:1px solid rgba(59,53,44,.25);padding:8px 14px;display:none;white-space:nowrap}
   body.orbit #orbithint{display:block}
   @media (max-width:600px){#ui input[type=range]{width:110px}}
+  /* --- Órbita realista: foto de fondo + IFC encima, en un rectángulo 16:9 --- */
+  #orbimg,#orbinfo{display:none}
+  #orbimg{position:fixed;z-index:-1;pointer-events:none;user-select:none;background:#000}
+  html:has(body.real){background:#14161a}
+  body.real #orbimg{display:block}
+  body.real #orbinfo{display:block;position:fixed;right:16px;top:58px;padding:6px 12px;font-size:12px;letter-spacing:.06em}
+  body.real #brand{color:#ece7dc}
+  body.real #focus,body.real .hour,body.real #camBtn,body.real #campanel,body.real #orbithint{display:none!important}
   /* --- Panel de cámara (vista libre y apartamentos) --- */
   #camBtn,#campanel{display:none}
   body.orbit #camBtn{display:block}
@@ -81,12 +89,14 @@
 </style>
 </head>
 <body>
+<img id="orbimg" alt="" draggable="false">
 <canvas id="c"></canvas>
 <div id="brand">Almar</div>
 <div id="ui">
   <div class="seg" role="group" aria-label="Modo">
     <button id="m-orbit" class="on" type="button">Vista libre</button>
     <button id="m-units" type="button">Apartamentos</button>
+    <button id="m-real" type="button" title="Fotos de Twinmotion con los apartamentos encima">Órbita realista</button>
   </div>
   <div id="focus" class="seg" role="group" aria-label="Torre a mirar">
     <button data-f="all" class="on" type="button">Todas</button>
@@ -106,6 +116,7 @@
   <div class="cam-row"><label for="cam-mm-n">Lente</label><span><input id="cam-mm-n" type="number" min="14" max="85" step="1" inputmode="numeric"> mm</span><input id="cam-mm" type="range" min="14" max="85" step="1" aria-label="Lente"></div>
   <button id="cam-reset" type="button">Restablecer</button>
 </div>
+<div id="orbinfo" class="glass"></div>
 <div id="orbithint">Arrastra para girar alrededor de las torres · WASD o clic derecho para desplazarte</div>
 <div id="list" class="glass" aria-label="Apartamentos"></div>
 <div id="panel" class="glass" hidden></div>

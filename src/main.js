@@ -13,6 +13,7 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { sunAt, smooth } from './sun.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createUnits } from './units.js';
+import { createOrbital } from './orbital.js';
 
 // Coordenadas IFC compartidas (x, y, cota) -> escena (x, cota, -y), recentradas
 const O = { x: 825200, y: 1615100 };
@@ -21,7 +22,7 @@ const S = (x, y, z = 0) => new THREE.Vector3(x - O.x, z, -(y - O.y));
 const canvas = document.getElementById('c');
 // Profundidad logarítmica: la geometría del IFC tiene caras casi coincidentes (muros sobre losas,
 // capas de acabado) que con profundidad lineal parpadean (z-fighting) al mover la cámara.
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true });
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, logarithmicDepthBuffer: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 // Sombra estática temporal: se calcula una sola vez (autoUpdate = false), casi sin costo por fotograma.
 // Se reemplaza por luz horneada en Blender cuando la geometría esté cerrada.
@@ -52,6 +53,7 @@ sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
 
 const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 5000);
+camera.layers.enable(1); // capa 1: prismas de apartamentos (la órbita realista los dibuja aparte)
 
 // Plano de corte de los materiales (fijo por encima de las torres)
 const clip = new THREE.Plane(new THREE.Vector3(0, -1, 0), 40);
@@ -152,6 +154,7 @@ const towerBox = new THREE.Box3().setFromObject(l21G.scene).expandByScalar(3);
 const portBox = new THREE.Box3().setFromObject(portG.scene).expandByScalar(2);
 const l16Box = new THREE.Box3().setFromObject(l16G.scene).expandByScalar(3);
 const vegArea = towerBox.clone().expandByVector(new THREE.Vector3(70, 0, 70));
+const vegGroups = []; // la órbita realista los oculta: la foto ya trae su propia vegetación
 const [shrubG, treeG] = await Promise.all([load('/models/shrub_04.glb'), load('/models/pachira_aquatica_01.glb')]);
 for (const [g, opts] of [
   [shrubG, { count: 100, scale: [0.9, 1.6] }],
@@ -160,6 +163,7 @@ for (const [g, opts] of [
   const veg = scatter(g, { ...opts, area: vegArea, avoid: [towerBox, portBox, l16Box], earth: earthMeshes, paved: pavedMeshes });
   veg.traverse((o) => { if (o.isMesh) useClip(o.material); });
   scene.add(veg);
+  vegGroups.push(veg);
 }
 
 // Sin suelo generado: solo el terreno de los IFC (el disco de papel y el terreno circundante se quitaron).
@@ -225,7 +229,9 @@ function applyWorld(real) {
 }
 
 
+let customLayout = null; // la órbita realista fija su propio rectángulo 16:9
 function resize() {
+  if (customLayout) { customLayout(); return; }
   renderer.setSize(innerWidth, innerHeight, false);
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
@@ -360,12 +366,13 @@ function switchCam(key) {
   showCam();
   saveCams();
 }
-const ui = { orbit: document.getElementById('m-orbit'), units: document.getElementById('m-units') };
+const ui = { orbit: document.getElementById('m-orbit'), units: document.getElementById('m-units'), real: document.getElementById('m-real') };
 // Elegir un apartamento lo convierte en el pivote del giro (tomas de dron); soltarlo vuelve al pivote de la torre.
 // Su torre pasa a ser la elegida, para que la otra se oculte si estorba.
 // el marcador se ve con el panel Cámara abierto, con un apartamento elegido o en la Torre 3 (que aún no tiene modelo)
 function showPivot() { return !camPanel.hidden || !!unitPivot || focusKey === 't3'; }
 function setUnitPivot(center, tower, floorY, unitKey) {
+  if (mode === 'real') { pivotMark.visible = false; return; } // en la órbita realista la cámara la fija la foto
   unitPivot = center;
   unitBase = center ? floorY : null;
   if (center) {
@@ -379,14 +386,38 @@ function setUnitPivot(center, tower, floorY, unitKey) {
 }
 const units = createUnits({ scene, camera, canvas, orbit, onPivot: setUnitPivot });
 let mode = null;
+// Órbita realista: 72 fotos de Twinmotion de fondo y los prismas del IFC encima (ver orbital.js)
+const orbital = createOrbital({
+  renderer, scene, camera, canvas,
+  onEnter() {
+    showAllTowers();
+    vegGroups.forEach((v) => { v.visible = false; });
+    sky.visible = false;
+    pivotMark.visible = false;
+    customLayout = orbital.layout;
+  },
+  onLeave() {
+    customLayout = null;
+    vegGroups.forEach((v) => { v.visible = true; });
+    applyWorld(true);
+    pivotMark.visible = showPivot();
+    resize();
+    camera.fov = mmToFov(CAM.mm); camera.updateProjectionMatrix();
+    orbit.target.copy(unitPivot ?? towersPivot);
+    applyCam(CAM.az);
+  },
+});
 function setMode(m) {
   const first = mode === null;
+  const wasReal = mode === 'real';
   mode = m;
   for (const [k, b] of Object.entries(ui)) b.classList.toggle('on', k === m);
   document.body.classList.add('orbit');
-  document.body.classList.toggle('units', m === 'units');
-  orbit.enabled = true;
-  units.setActive(m === 'units');
+  document.body.classList.toggle('units', m === 'units' || m === 'real');
+  orbit.enabled = m !== 'real';
+  units.setActive(m === 'units' || m === 'real');
+  if (m === 'real') { if (!wasReal) orbital.enter(); return; }
+  if (wasReal) orbital.leave();
   if (!first) return; // cambiar entre vista libre y apartamentos no mueve la cámara
   applyWorld(true);
   clip.constant = CLIP_HIGH;
@@ -559,6 +590,14 @@ const OBB = { t1: obbOf(l16G.scene), t2: obbOf(l21G.scene) };
 const occRay = new THREE.Ray(), occHit = new THREE.Vector3(), occBox = new THREE.Box3();
 const occCam = new THREE.Vector3(), occDir = new THREE.Vector3(), occPt = new THREE.Vector3();
 const toFrame = (b, x, y, z, out) => out.set(x * b.c + z * b.s, y, -x * b.s + z * b.c);
+// vuelve a mostrar la torre que se ocultó por estorbar (la órbita realista necesita las dos para la máscara de profundidad)
+function showAllTowers() {
+  if (!occluded) return;
+  OTHER[occluded === 2 ? 't1' : 't2'].root.visible = true;
+  occluded = null;
+  units.hideTower(null);
+  renderer.shadowMap.needsUpdate = true;
+}
 function updateOcclusion() {
   const o = OTHER[focusKey];
   let hide = false;
@@ -599,6 +638,7 @@ for (const b of focusBtns) b.addEventListener('click', () => {
 });
 ui.orbit.addEventListener('click', () => setMode('orbit'));
 ui.units.addEventListener('click', () => setMode('units'));
+ui.real.addEventListener('click', () => setMode('real'));
 
 const hourIn = document.getElementById('hour'), hourOut = document.getElementById('hourv');
 let hourPending = null;
@@ -612,6 +652,12 @@ const glideStep = new THREE.Vector3();
 function frame() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (hourPending !== null) { setHour(hourPending); hourPending = null; } // una vez por fotograma como máximo
+  if (mode === 'real') { // órbita realista: la cámara la fija la foto actual
+    syncGhost();
+    orbital.render();
+    requestAnimationFrame(frame);
+    return;
+  }
   if (glideToTowers) { // el punto de giro vuelve a las torres en ~0.4 s, sin salto de cámara
     // se mueven juntos el pivote y la cámara, así el ángulo y la distancia elegidos se conservan
     const p = unitPivot ?? towersPivot;
@@ -639,7 +685,7 @@ function frame() {
 setMode('orbit');
 document.getElementById('load').style.opacity = 0;
 setTimeout(() => document.getElementById('load').remove(), 700);
-window.__scene = { THREE, scene, camera, renderer, orbit, setMode, setHour, towers: { t1: l16G.scene, t2: l21G.scene } };
+window.__scene = { THREE, scene, camera, renderer, orbit, setMode, setHour, towers: { t1: l16G.scene, t2: l21G.scene }, orbital };
 frame();
 
 // Medición en equipos reales: abrir con ?fps para ver fluidez, carga y carga gráfica en pantalla.
