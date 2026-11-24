@@ -11,20 +11,22 @@ import * as THREE from 'three';
 const TM = { cx: -62.971, cy: 247.468, R: 128.025, z: 32.909, pitch: -10, fov: 55.1 }; // pitch -10 de Twinmotion; trim -1.1 = ajuste medido sobre la foto 000
 const OFF = { x: 68.729, y: 40.710, z: -274.899 };
 const FRAMES = [...Array(72).keys()].map((i) => i * 5).filter((a) => a !== 290); // falta la foto de 290° en la entrega
-const url = (a) => `/orbital/ALMAR_ORBITAL_${String(a).padStart(3, '0')}.jpg`;
+const VERSION = '20261124'; // cambia con cada entrega de fotos: evita que el navegador muestre fotos viejas en caché
+const url = (a) => `/orbital/ALMAR_ORBITAL_${String(a).padStart(3, '0')}.jpg?v=${VERSION}`;
 const params = new URLSearchParams(location.search);
 
 export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeave }) {
   const img = document.getElementById('orbimg');
   const info = document.getElementById('orbinfo');
   const D2R = THREE.MathUtils.degToRad;
-  const state = { active: false, angle: 0, trim: Number(params.get('trim') ?? -1.1), loaded: new Set(), started: false };
+  const state = { active: false, angle: 0, want: 0, trim: Number(params.get('trim') ?? -1.1), loaded: new Set(), started: false };
   // máscara de profundidad: invisible; con ?calib se ve el IFC en magenta translúcido para ajustar la alineación
   const mask = params.has('calib')
     ? new THREE.MeshBasicMaterial({ color: 0xff00ff, transparent: true, opacity: 0.35, depthWrite: true })
     : new THREE.MeshBasicMaterial({ colorWrite: false });
 
-  const nearest = (a) => FRAMES.reduce((b, f) => (Math.abs(((f - a + 540) % 360) - 180) < Math.abs(((b - a + 540) % 360) - 180) ? f : b), FRAMES[0]);
+  const gap = (f, a) => Math.abs(((f - a + 540) % 360) - 180); // distancia angular
+  const nearest = (a, list = FRAMES) => list.reduce((b, f) => (gap(f, a) < gap(b, a) ? f : b), list[0]);
 
   function poseFor(a) {
     const r = D2R(a), yaw = D2R(-90 - a), pitch = D2R(TM.pitch + state.trim);
@@ -33,10 +35,14 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     return { pos, dir };
   }
 
+  // La cámara sigue siempre a la foto que se ve: si la del ángulo pedido aún no descargó, se muestra la cargada más
+  // cercana (con su cámara) y se cambia cuando llegue. Antes la cámara avanzaba con la foto vieja en pantalla.
   function showFrame(a) {
-    const f = nearest(a);
+    state.want = a;
+    if (!state.loaded.size) return;
+    const f = nearest(a, [...state.loaded]);
     state.angle = f;
-    if (state.loaded.has(f)) img.src = url(f);
+    img.src = url(f);
     const { pos, dir } = poseFor(f);
     camera.position.copy(pos);
     camera.up.set(0, 1, 0);
@@ -44,9 +50,10 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     info.textContent = `${f}° · arrastra o usa ← →` + (state.loaded.size < FRAMES.length ? ` · cargando ${state.loaded.size}/${FRAMES.length}` : '');
   }
 
-  // la imagen y el lienzo comparten un rectángulo 16:9 centrado en la ventana, para que coincidan píxel a píxel
+  // la imagen y el lienzo comparten un rectángulo 16:9 que cubre toda la ventana (sin barras; se recortan los bordes
+  // que sobran), para que coincidan píxel a píxel
   function layout() {
-    const w = Math.min(innerWidth, innerHeight * 16 / 9), h = w * 9 / 16;
+    const w = Math.max(innerWidth, innerHeight * 16 / 9), h = w * 9 / 16;
     const box = { left: `${(innerWidth - w) / 2}px`, top: `${(innerHeight - h) / 2}px`, width: `${w}px`, height: `${h}px` };
     Object.assign(canvas.style, { inset: 'auto', ...box });
     Object.assign(img.style, box);
@@ -60,10 +67,15 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     if (state.started) return;
     state.started = true;
     // primero las más cercanas al ángulo actual, para poder girar enseguida
-    const order = [...FRAMES].sort((a, b) => Math.abs(a - state.angle) - Math.abs(b - state.angle));
+    const order = [...FRAMES].sort((a, b) => gap(a, state.want) - gap(b, state.want));
     for (const f of order) {
       const im = new Image();
-      im.onload = () => { state.loaded.add(f); if (f === nearest(state.angle) || state.loaded.size === FRAMES.length) showFrame(state.angle); else info.textContent = `${state.angle}° · cargando ${state.loaded.size}/${FRAMES.length}`; };
+      im.onload = () => {
+        state.loaded.add(f);
+        // si la recién llegada queda más cerca del ángulo pedido que la que se ve, se cambia (foto y cámara juntas)
+        if (gap(f, state.want) < gap(state.angle, state.want) || state.loaded.size === 1 || state.loaded.size === FRAMES.length) showFrame(state.want);
+        else info.textContent = `${state.angle}° · arrastra o usa ← → · cargando ${state.loaded.size}/${FRAMES.length}`;
+      };
       im.src = url(f);
     }
   }
@@ -81,8 +93,8 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
   addEventListener('pointerup', () => { dragX = null; });
   addEventListener('keydown', (e) => {
     if (!state.active) return;
-    if (e.code === 'ArrowLeft') showFrame(state.angle + 5);
-    if (e.code === 'ArrowRight') showFrame(state.angle - 5);
+    if (e.code === 'ArrowLeft') showFrame(nearest(state.want) + 5); // sobre el ángulo pedido: funciona aunque la foto no haya llegado
+    if (e.code === 'ArrowRight') showFrame(nearest(state.want) - 5);
   });
 
   return {
