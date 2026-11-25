@@ -92,9 +92,25 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     }
   }
 
+  // Los cuadros intermedios tienen defectos en fachadas repetitivas (la interpolación confunde balcones vecinos), así
+  // que solo se usan en movimiento: al soltar o con las flechas la vista se desliza grado a grado hasta una foto real.
+  const KEYS = FRAMES.filter(isKey);
+  let glide = null, glideTarget = 0;
+  function glideTo(target) {
+    clearInterval(glide);
+    glideTarget = target;
+    let a = Math.round(state.want);
+    glide = setInterval(() => {
+      const d = ((target - a + 540) % 360) - 180;
+      if (Math.abs(d) < 1) { clearInterval(glide); glide = null; showFrame(target); return; }
+      a = (a + Math.sign(d) + 360) % 360;
+      showFrame(a);
+    }, 30);
+  }
+
   // arrastrar en horizontal gira; cada 4 px un ángulo de 1° (una foto nueva cada 4 px)
   let dragX = null, acc = 0;
-  canvas.addEventListener('pointerdown', (e) => { if (state.active && e.button === 0) { dragX = e.clientX; acc = state.angle; } });
+  canvas.addEventListener('pointerdown', (e) => { if (state.active && e.button === 0) { clearInterval(glide); dragX = e.clientX; acc = state.angle; } });
   addEventListener('pointermove', (e) => {
     if (!state.active || dragX === null) return;
     acc -= (e.clientX - dragX) * 0.25; // arrastrar a la derecha: la cámara se mueve a la izquierda (ángulo menor)
@@ -102,11 +118,14 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     acc = ((acc % 360) + 360) % 360;
     if (nearest(acc) !== state.angle) showFrame(acc);
   });
-  addEventListener('pointerup', () => { dragX = null; });
+  addEventListener('pointerup', () => { if (dragX !== null) glideTo(nearest(state.want, KEYS)); dragX = null; });
   addEventListener('keydown', (e) => {
     if (!state.active) return;
-    if (e.code === 'ArrowLeft') showFrame(nearest(state.want) + 5); // sobre el ángulo pedido: funciona aunque la foto no haya llegado
-    if (e.code === 'ArrowRight') showFrame(nearest(state.want) - 5);
+    // siguiente foto real a partir del ángulo pedido (o del destino, si ya se está deslizando): funciona aunque la foto
+    // no haya llegado y permite encadenar varias pulsaciones
+    const i = KEYS.indexOf(glide ? glideTarget : nearest(state.want, KEYS));
+    if (e.code === 'ArrowLeft') glideTo(KEYS[(i + 1) % KEYS.length]);
+    if (e.code === 'ArrowRight') glideTo(KEYS[(i - 1 + KEYS.length) % KEYS.length]);
   });
 
   return {
