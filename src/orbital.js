@@ -10,8 +10,11 @@ import * as THREE from 'three';
 // Z 32.909 m, inclinación -10°, 55.1° de campo vertical, 16:9.
 const TM = { cx: -62.971, cy: 247.468, R: 128.025, z: 32.909, pitch: -10, fov: 55.1 }; // pitch -10 de Twinmotion; trim -1.1 = ajuste medido sobre la foto 000
 const OFF = { x: 68.729, y: 40.710, z: -274.899 };
-const FRAMES = [...Array(72).keys()].map((i) => i * 5).filter((a) => a !== 290); // falta la foto de 290° en la entrega
-const VERSION = '20261124'; // cambia con cada entrega de fotos: evita que el navegador muestre fotos viejas en caché
+// Una foto por grado: las múltiplos de 5° son las de Twinmotion (falta 290° en la entrega); las demás son cuadros
+// intermedios generados con interpolación (RIFE) entre cada par de fotos vecinas.
+const FRAMES = [...Array(360).keys()];
+const isKey = (a) => a % 5 === 0 && a !== 290;
+const VERSION = '20261125'; // cambia con cada entrega de fotos: evita que el navegador muestre fotos viejas en caché
 const url = (a) => `/orbital/ALMAR_ORBITAL_${String(a).padStart(3, '0')}.jpg?v=${VERSION}`;
 const params = new URLSearchParams(location.search);
 
@@ -37,16 +40,25 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
 
   // La cámara sigue siempre a la foto que se ve: si la del ángulo pedido aún no descargó, se muestra la cargada más
   // cercana (con su cámara) y se cambia cuando llegue. Antes la cámara avanzaba con la foto vieja en pantalla.
+  // La foto se decodifica antes de cambiarla y la cámara se mueve en ese mismo momento, para que no quede un cuadro
+  // con la cámara nueva sobre la foto anterior; si llegan varias, solo se aplica la más reciente.
+  let asked = 0, applied = 0;
   function showFrame(a) {
     state.want = a;
     if (!state.loaded.size) return;
     const f = nearest(a, [...state.loaded]);
     state.angle = f;
-    img.src = url(f);
-    const { pos, dir } = poseFor(f);
-    camera.position.copy(pos);
-    camera.up.set(0, 1, 0);
-    camera.lookAt(pos.clone().add(dir));
+    const tok = ++asked, im = new Image();
+    im.src = url(f);
+    im.decode().catch(() => {}).then(() => {
+      if (tok < applied) return;
+      applied = tok;
+      img.src = im.src;
+      const { pos, dir } = poseFor(f);
+      camera.position.copy(pos);
+      camera.up.set(0, 1, 0);
+      camera.lookAt(pos.clone().add(dir));
+    });
     info.textContent = `${f}° · arrastra o usa ← →` + (state.loaded.size < FRAMES.length ? ` · cargando ${state.loaded.size}/${FRAMES.length}` : '');
   }
 
@@ -66,8 +78,8 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
   function preload() {
     if (state.started) return;
     state.started = true;
-    // primero las más cercanas al ángulo actual, para poder girar enseguida
-    const order = [...FRAMES].sort((a, b) => gap(a, state.want) - gap(b, state.want));
+    // primero las de Twinmotion (cada 5°) y luego las intermedias; en cada grupo, las más cercanas al ángulo actual
+    const order = [...FRAMES].sort((a, b) => (isKey(b) - isKey(a)) || gap(a, state.want) - gap(b, state.want));
     for (const f of order) {
       const im = new Image();
       im.onload = () => {
@@ -80,7 +92,7 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     }
   }
 
-  // arrastrar en horizontal gira; cada 4 px un ángulo de 1° (dos o tres fotos por barrido corto)
+  // arrastrar en horizontal gira; cada 4 px un ángulo de 1° (una foto nueva cada 4 px)
   let dragX = null, acc = 0;
   canvas.addEventListener('pointerdown', (e) => { if (state.active && e.button === 0) { dragX = e.clientX; acc = state.angle; } });
   addEventListener('pointermove', (e) => {
