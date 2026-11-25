@@ -65,6 +65,7 @@ export function createOrthoGround({ orto, dsm, earth, paved, renderer, below = 0
     }
     return out;
   }
+  const raw = dsm;
   dsm = filter(filter(filter(dsm, 3, 'min'), 3, 'max'), 1, 'mean');
 
   // Desfase vertical DSM -> levantamiento: mediana de (vía del IFC − DSM) donde ambos existen
@@ -108,6 +109,21 @@ export function createOrthoGround({ orto, dsm, earth, paved, renderer, below = 0
     }
   }
 
+  // Árboles: altura de copa = DSM crudo − suelo filtrado. Cada máximo local (±2 celdas, ~4 m) de 3 m o más es un árbol,
+  // apoyado en el suelo de la malla. No dentro del lote ni pegado a su borde (ahí manda el diseño).
+  const chm = (i) => raw[i] - dsm[i];
+  const trees = [];
+  for (let r = 2; r < rows - 2; r++) for (let c = 2; c < cols - 2; c++) {
+    const i = idx(c, r), h = chm(i);
+    if (!(h >= 3) || !isNaN(ifc[i])) continue;
+    let ok = true;
+    for (let dr = -2; dr <= 2 && ok; dr++) for (let dc = -2; dc <= 2 && ok; dc++) {
+      const j = idx(c + dc, r + dr);
+      if (!isNaN(ifc[j]) || chm(j) > h || (chm(j) === h && j < i)) ok = false;
+    }
+    if (ok) trees.push({ x: x0 + c * step, y: H[i], z: z0 + r * step, h: Math.min(h, 25) });
+  }
+
   // Malla con la foto: el vértice (c, r) cae en el píxel (c, r) · step / res
   const geo = new THREE.BufferGeometry();
   const P = new Float32Array(H.length * 3), UV = new Float32Array(H.length * 2), I = [];
@@ -127,5 +143,6 @@ export function createOrthoGround({ orto, dsm, earth, paved, renderer, below = 0
   // alphaTest: los bordes sin datos se recortan sin problemas de orden de transparencias
   const mesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, side: THREE.DoubleSide }));
   mesh.userData.offset = offset;
+  mesh.userData.trees = trees;
   return mesh;
 }

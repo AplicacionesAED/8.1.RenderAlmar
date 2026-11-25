@@ -27,7 +27,11 @@ export function scatter(gltf, { count, area, avoid, earth, paved, scale = [0.8, 
     dummy.updateMatrix();
     mats.push(dummy.matrix.clone());
   }
+  return instances(gltf, mats);
+}
 
+// Un grupo con una InstancedMesh por submalla del modelo, una instancia por matriz
+export function instances(gltf, mats) {
   const group = new THREE.Group();
   gltf.scene.updateMatrixWorld(true);
   gltf.scene.traverse((o) => {
