@@ -8,7 +8,7 @@ import topMats from '../data/top_materials.json';
 import topRoles from '../data/top_roles.json';
 import { ifcMaterial, TEX_TIER } from './materials.js';
 import { makeMaterials } from './materials.js';
-import { scatter, instances } from './vegetation.js';
+import { scatter, impostorTrees } from './vegetation.js';
 import { Sky } from 'three/examples/jsm/objects/Sky.js';
 import { sunAt, smooth } from './sun.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
@@ -177,19 +177,14 @@ const orto = createOrthoGround({ orto: ORTO, dsm, earth: earthMeshes, paved: pav
 orto.layers.set(2); // capa propia: la órbita realista la dibuja con su color (no como máscara) alrededor de la foto
 camera.layers.enable(2);
 scene.add(orto);
-// Árboles reales fuera del lote: posición y altura de copa sacadas del DSM (ver ortho.js), con el modelo de árbol de la
-// vegetación escalado a esa altura. Misma capa que el suelo, para que la órbita realista también los dibuje.
-const treeH = new THREE.Box3().setFromObject(treeG.scene).getSize(new THREE.Vector3()).y;
-const treeDummy = new THREE.Object3D();
-const realTrees = instances(treeG, orto.userData.trees.map((t, k) => {
-  treeDummy.position.set(t.x, t.y, t.z);
-  treeDummy.rotation.set(0, k * 2.4, 0);
-  treeDummy.scale.setScalar(t.h / treeH);
-  treeDummy.updateMatrix();
-  return treeDummy.matrix.clone();
-}));
-// sin sombras: ~530 árboles de ~7.7 mil triángulos; la pasada de sombra bajaba de 50 a 34 fps en una gráfica integrada
-realTrees.traverse((o) => { o.layers.set(2); o.castShadow = o.receiveShadow = false; });
+// Árboles reales fuera del lote: posición y altura de copa sacadas del DSM (ver ortho.js), como impostores fotorrealistas
+// (ver vegetation.js). Misma capa que el suelo, para que la órbita realista también los dibuje.
+const realTrees = impostorTrees(orto.userData.trees, [
+  { url: '/models/trees/island_tree_01_impostor.webp?v=3', height: 5.027, W: 3.452 },
+  { url: '/models/trees/island_tree_02_impostor.webp?v=3', height: 3.407, W: 2.986 },
+  { url: '/models/trees/island_tree_03_impostor.webp?v=3', height: 2.615, W: 2.122 },
+]);
+realTrees.traverse((o) => o.layers.set(2));
 scene.add(realTrees);
 
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.

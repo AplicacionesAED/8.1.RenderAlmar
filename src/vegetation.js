@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 // Vegetación instanciada (Poly Haven, CC0): una InstancedMesh por submalla del modelo.
 // Se dispersa sobre el terreno natural, fuera de la huella de la torre y de los pavimentos.
@@ -27,11 +28,7 @@ export function scatter(gltf, { count, area, avoid, earth, paved, scale = [0.8, 
     dummy.updateMatrix();
     mats.push(dummy.matrix.clone());
   }
-  return instances(gltf, mats);
-}
 
-// Un grupo con una InstancedMesh por submalla del modelo, una instancia por matriz
-export function instances(gltf, mats) {
   const group = new THREE.Group();
   gltf.scene.updateMatrixWorld(true);
   gltf.scene.traverse((o) => {
@@ -42,6 +39,44 @@ export function instances(gltf, mats) {
     inst.castShadow = true;
     inst.receiveShadow = true;
     inst.instanceMatrix.needsUpdate = true;
+    inst.computeBoundingSphere();
+    group.add(inst);
+  });
+  return group;
+}
+
+// Árboles impostores: cada árbol son 3 planos cruzados (0°, 60°, 120°) con 3 vistas de un modelo fotorrealista
+// renderizadas de antemano (public/models/trees/*_impostor.webp, 3 vistas de lado en una tira; island_tree_01..03 de
+// Poly Haven, CC0). Cientos de árboles cuestan lo que unos pocos miles de triángulos.
+//   trees: [{ x, y, z, h }] base y altura de cada árbol; kinds: [{ url, height, W }] altura del modelo y medio ancho de
+//   cada vista (la vista es un cuadrado de 2W de lado con la base abajo)
+export function impostorTrees(trees, kinds) {
+  const group = new THREE.Group();
+  const dummy = new THREE.Object3D();
+  kinds.forEach((kind, t) => {
+    const mine = trees.filter((_, i) => i % kinds.length === t);
+    if (!mine.length) return;
+    const parts = [0, 1, 2].map((k) => {
+      const g = new THREE.PlaneGeometry(1, 1).translate(0, 0.48, 0); // base un poco hundida: oculta el disco de suelo del modelo
+      const uv = g.attributes.uv;
+      for (let i = 0; i < uv.count; i++) uv.setX(i, (k + uv.getX(i)) / 3);
+      return g.rotateY((k * Math.PI) / 3);
+    });
+    const geo = mergeGeometries(parts);
+    const tex = new THREE.TextureLoader().load(kind.url);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    // toneMapped: false, la imagen ya salió con el mapeo de tono al renderizarla; aplicarlo otra vez la oscurece
+    const mat = new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5, alphaToCoverage: true, side: THREE.DoubleSide, toneMapped: false });
+    const inst = new THREE.InstancedMesh(geo, mat, mine.length);
+    const tint = new THREE.Color();
+    mine.forEach((tr, i) => {
+      dummy.position.set(tr.x, tr.y, tr.z);
+      dummy.rotation.set(0, (i * 2.4) % (Math.PI * 2), 0);
+      dummy.scale.setScalar((tr.h * 2 * kind.W) / kind.height);
+      dummy.updateMatrix();
+      inst.setMatrixAt(i, dummy.matrix);
+      inst.setColorAt(i, tint.setScalar(0.92 + ((i * 37) % 12) / 100)); // variación leve de tono entre árboles
+    });
     inst.computeBoundingSphere();
     group.add(inst);
   });
