@@ -14,7 +14,7 @@ import { sunAt, smooth } from './sun.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createUnits } from './units.js';
 import { createOrbital } from './orbital.js';
-import { createOrthoGround } from './ortho.js';
+import { createOrthoGround, createFarGround } from './ortho.js';
 
 // Coordenadas IFC compartidas (x, y, cota) -> escena (x, cota, -y), recentradas
 const O = { x: 825200, y: 1615100 };
@@ -53,7 +53,7 @@ sun.shadow.bias = -0.0005;
 sun.shadow.normalBias = 0.05;
 scene.add(sun, sun.target);
 
-const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 5000);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.5, 12000); // 12 km: alcanza el entorno lejano (±6 km)
 camera.layers.enable(1); // capa 1: prismas de apartamentos (la órbita realista los dibuja aparte)
 
 // Plano de corte de los materiales (fijo por encima de las torres)
@@ -186,6 +186,19 @@ const realTrees = impostorTrees(orto.userData.trees, [
 ]);
 realTrees.traverse((o) => o.layers.set(2));
 scene.add(realTrees);
+// Entorno lejano: Barú alrededor del proyecto (ver ortho.js) y el mar a su nivel (cota −2.32 del levantamiento, desfase
+// medido entre el relieve público y el DSM). El mar va en la capa 3: solo vista libre; la órbita usa el de Twinmotion.
+const FAR = { n: 301, step: 40, e0: 819205.759, n0: 1621127.431, sea: -2.32 };
+const farHeights = new Float32Array(await (await fetch('/orto/far_dem.bin')).arrayBuffer());
+const farGround = createFarGround({ far: FAR, heights: farHeights, url: '/orto/far_s2.webp?v=3' });
+farGround.layers.set(2);
+scene.add(farGround);
+const sea = new THREE.Mesh(new THREE.PlaneGeometry(30000, 30000), new THREE.MeshStandardMaterial({ color: 0x2f6f9f, roughness: 0.25, metalness: 0 }));
+sea.rotation.x = -Math.PI / 2;
+sea.position.set(5.759, FAR.sea, -27.431);
+sea.layers.set(3);
+camera.layers.enable(3);
+scene.add(sea);
 
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.
 const sky = new Sky();
@@ -242,8 +255,8 @@ function applyWorld(real) {
   sky.visible = real;
   scene.background = real ? null : PAPER;
   scene.environment = real ? envMap : null;
-  scene.fog.near = real ? 160 : 400;
-  scene.fog.far = real ? 650 : 1200;
+  scene.fog.near = 400;
+  scene.fog.far = real ? 6500 : 1200; // modo real: niebla lejana, para ver Barú y el mar del entorno lejano
   scene.fog.color.copy(real ? HORIZON : PAPER);
 }
 

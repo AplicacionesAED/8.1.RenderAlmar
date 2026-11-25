@@ -146,3 +146,26 @@ export function createOrthoGround({ orto, dsm, earth, paved, renderer, below = 0
   mesh.userData.trees = trees;
   return mesh;
 }
+
+// Entorno lejano (±6 km): relieve Terrarium (AWS Open Data, de SRTM) cada 40 m y Sentinel-2 cloudless 2016 de EOX
+// (CC BY 4.0) reproyectados a la escena; el mar es transparente (en la órbita queda el mar de Twinmotion). Las alturas ya
+// vienen en la cota del levantamiento y hundidas 3 m bajo la ortofoto, que manda cerca del proyecto.
+//   far: { n, step, e0, n0 } malla n × n desde la esquina noroeste (EPSG:3116); heights: Float32Array, fila 0 al norte
+export function createFarGround({ far, heights, url }) {
+  const { n, step } = far;
+  const x0 = far.e0 - 825200, z0 = -(far.n0 - 1615100);
+  const geo = new THREE.BufferGeometry();
+  const P = new Float32Array(n * n * 3), UV = new Float32Array(n * n * 2), I = [];
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const i = r * n + c;
+    P.set([x0 + c * step, heights[i], z0 + r * step], i * 3);
+    UV.set([c / (n - 1), 1 - r / (n - 1)], i * 2);
+    if (c < n - 1 && r < n - 1) I.push(i, i + n, i + 1, i + 1, i + n, i + n + 1);
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(P, 3));
+  geo.setAttribute('uv', new THREE.BufferAttribute(UV, 2));
+  geo.setIndex(I);
+  const tex = new THREE.TextureLoader().load(url);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ map: tex, alphaTest: 0.5 }));
+}

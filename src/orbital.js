@@ -149,6 +149,7 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
     // pasada 1: IFC como máscara de profundidad (transparente); pasada 2: el suelo con la ortofoto (capa 2) alrededor
     // del lote, tapado por esa profundidad donde está el proyecto; pasada 3: los prismas (capa 1)
     render() {
+      const keep = camera.layers.mask;
       renderer.setClearColor(0x000000, 0);
       camera.layers.set(0);
       scene.overrideMaterial = mask;
@@ -161,8 +162,7 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
       camera.layers.set(1);
       renderer.render(scene, camera);
       renderer.autoClear = true;
-      camera.layers.enable(0);
-      camera.layers.enable(2);
+      camera.layers.mask = keep;
     },
   };
 }
