@@ -169,12 +169,11 @@ for (const [g, opts] of [
 
 // Sin suelo generado: solo el terreno de los IFC (el disco de papel y el terreno circundante se quitaron).
 
-// --- Ortofoto ContextCapture abr-2026 bajo la implantación, como mapa de contexto (provisional: es la imagen incrustada
-// en el plano DR-01 en PDF, 0.127 m/px, recortada al marco del plano). Esquina inferior izquierda = inserción de
-// ALMAR_ORTOFOTO_ABR2026.jpg en el DXF (EPSG:3116); tamaño medido en el PDF a escala 1:500. Va pegada a un suelo a nivel
-// del terreno del IFC (ver ortho.js). Cuando llegue el JPG original se cambia aquí.
-const ORTO = { e0: 825104.206, n0: 1614987.065, w: 242.444, h: 281.81, url: '/orto/ortofoto_abr2026_pdf.webp' };
-const orto = createOrthoGround({ orto: ORTO, meshes: [...earthMeshes, ...pavedMeshes], renderer }) ?? new THREE.Group();
+// --- Ortofoto y DSM ContextCapture abr-2026 (0.19 m/px, 2811 × 2365 px) como suelo de contexto a nivel (ver ortho.js).
+// Esquina noroeste del .tfw (EPSG:3116). El DSM va remuestreado cada 10 px (1.9 m) en public/orto/dsm_abr2026.bin.
+const ORTO = { e0: 825104.2064, n0: 1615436.4152, res: 0.19, W: 2811, H: 2365, cols: 282, rows: 237, step: 1.9, url: '/orto/ortofoto_abr2026.webp' };
+const dsm = new Float32Array(await (await fetch('/orto/dsm_abr2026.bin')).arrayBuffer());
+const orto = createOrthoGround({ orto: ORTO, dsm, earth: earthMeshes, paved: pavedMeshes, renderer });
 scene.add(orto);
 
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.
