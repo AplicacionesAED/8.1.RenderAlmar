@@ -85,7 +85,6 @@
   .pano-thumbs img{display:block;width:96px;height:48px;object-fit:cover}
   .pano-hint{position:absolute;right:16px;top:16px;padding:8px 14px;font-size:12px}
   @media (max-width:640px){#list{display:none!important} #panel{left:16px;right:16px;width:auto;top:auto;bottom:70px} .pano-hint{display:none}}
-  #credits{position:fixed;left:6px;bottom:4px;max-width:30vw;font-size:10px;line-height:1.3;opacity:.55;pointer-events:none;color:var(--ink);text-shadow:0 0 3px rgba(255,255,255,.7)}
   #load{position:fixed;inset:0;display:grid;place-items:center;background:var(--paper);font-size:14px;letter-spacing:.1em;transition:opacity .6s}
 </style>
 </head>
@@ -122,8 +121,6 @@
 <div id="list" class="glass" aria-label="Apartamentos"></div>
 <div id="panel" class="glass" hidden></div>
 <div id="legend" class="glass"></div>
-<!-- Atribución exigida por la licencia CC BY 4.0 de la imagen satelital del entorno lejano (src/ortho.js) -->
-<div id="credits">Entorno: Sentinel-2 cloudless – s2maps.eu by EOX IT Services GmbH (Contains modified Copernicus Sentinel data 2016) · Relieve: AWS Terrain Tiles</div>
 <div id="load">cargando implantación…</div>
 <script type="module" src="/src/main.js"></script>
 </body>
