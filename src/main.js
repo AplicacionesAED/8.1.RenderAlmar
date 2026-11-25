@@ -174,6 +174,8 @@ for (const [g, opts] of [
 const ORTO = { e0: 825104.2064, n0: 1615436.4152, res: 0.19, W: 2811, H: 2365, cols: 282, rows: 237, step: 1.9, url: '/orto/ortofoto_abr2026.webp' };
 const dsm = new Float32Array(await (await fetch('/orto/dsm_abr2026.bin')).arrayBuffer());
 const orto = createOrthoGround({ orto: ORTO, dsm, earth: earthMeshes, paved: pavedMeshes, renderer });
+orto.layers.set(2); // capa propia: la órbita realista la dibuja con su color (no como máscara) alrededor de la foto
+camera.layers.enable(2);
 scene.add(orto);
 
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.
@@ -400,7 +402,6 @@ const orbital = createOrbital({
   onEnter() {
     showAllTowers();
     vegGroups.forEach((v) => { v.visible = false; });
-    orto.visible = false;
     sky.visible = false;
     pivotMark.visible = false;
     customLayout = orbital.layout;
@@ -408,7 +409,6 @@ const orbital = createOrbital({
   onLeave() {
     customLayout = null;
     vegGroups.forEach((v) => { v.visible = true; });
-    orto.visible = true;
     applyWorld(true);
     pivotMark.visible = showPivot();
     resize();

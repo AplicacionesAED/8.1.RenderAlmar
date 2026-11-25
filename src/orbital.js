@@ -146,7 +146,8 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
       canvas.style.cssText = '';
       onLeave?.();
     },
-    // pasada 1: IFC como máscara de profundidad (transparente); pasada 2: solo los prismas (capa 1) sobre esa profundidad
+    // pasada 1: IFC como máscara de profundidad (transparente); pasada 2: el suelo con la ortofoto (capa 2) alrededor
+    // del lote, tapado por esa profundidad donde está el proyecto; pasada 3: los prismas (capa 1)
     render() {
       renderer.setClearColor(0x000000, 0);
       camera.layers.set(0);
@@ -154,11 +155,14 @@ export function createOrbital({ renderer, scene, camera, canvas, onEnter, onLeav
       renderer.autoClear = true;
       renderer.render(scene, camera);
       scene.overrideMaterial = null;
-      camera.layers.set(1);
       renderer.autoClear = false;
+      camera.layers.set(2);
+      renderer.render(scene, camera);
+      camera.layers.set(1);
       renderer.render(scene, camera);
       renderer.autoClear = true;
       camera.layers.enable(0);
+      camera.layers.enable(2);
     },
   };
 }
