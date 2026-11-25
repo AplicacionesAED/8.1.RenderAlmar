@@ -168,6 +168,21 @@ for (const [g, opts] of [
 
 // Sin suelo generado: solo el terreno de los IFC (el disco de papel y el terreno circundante se quitaron).
 
+// --- Ortofoto ContextCapture abr-2026 bajo la implantación, como mapa de contexto (provisional: es la imagen incrustada
+// en el plano DR-01 en PDF, 0.127 m/px, recortada al marco del plano). Esquina inferior izquierda = inserción de
+// ALMAR_ORTOFOTO_ABR2026.jpg en el DXF (EPSG:3116); tamaño medido en el PDF a escala 1:500. Plano a la cota más baja del
+// terreno del IFC para que el sólido topográfico quede encima. Cuando llegue el JPG original se cambia aquí.
+const ORTO = { e0: 825104.206, n0: 1614987.065, w: 242.444, h: 281.81, url: '/orto/ortofoto_abr2026_pdf.webp' };
+const earthBox = new THREE.Box3();
+earthMeshes.forEach((o) => earthBox.expandByObject(o));
+const ortoTex = new THREE.TextureLoader().load(ORTO.url);
+ortoTex.colorSpace = THREE.SRGBColorSpace;
+ortoTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+const orto = new THREE.Mesh(new THREE.PlaneGeometry(ORTO.w, ORTO.h), new THREE.MeshBasicMaterial({ map: ortoTex, transparent: true }));
+orto.rotation.x = -Math.PI / 2;
+orto.position.set(ORTO.e0 - 825200 + ORTO.w / 2, earthBox.min.y - 0.05, -(ORTO.n0 - 1615100 + ORTO.h / 2));
+scene.add(orto);
+
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.
 const sky = new Sky();
 sky.scale.setScalar(4500); // más allá del suelo lejano: la niebla funde el borde del suelo con el horizonte
@@ -392,6 +407,7 @@ const orbital = createOrbital({
   onEnter() {
     showAllTowers();
     vegGroups.forEach((v) => { v.visible = false; });
+    orto.visible = false;
     sky.visible = false;
     pivotMark.visible = false;
     customLayout = orbital.layout;
@@ -399,6 +415,7 @@ const orbital = createOrbital({
   onLeave() {
     customLayout = null;
     vegGroups.forEach((v) => { v.visible = true; });
+    orto.visible = true;
     applyWorld(true);
     pivotMark.visible = showPivot();
     resize();
