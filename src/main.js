@@ -15,6 +15,7 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { createUnits } from './units.js';
 import { createOrbital } from './orbital.js';
 import { createOrthoGround } from './ortho.js';
+import { createShowcase } from './showcase.js';
 
 // Coordenadas IFC compartidas (x, y, cota) -> escena (x, cota, -y), recentradas
 const O = { x: 825200, y: 1615100 };
@@ -435,15 +436,16 @@ function setMode(m) {
   document.body.classList.toggle('units', m === 'units' || m === 'real');
   orbit.enabled = m !== 'real';
   units.setActive(m === 'units' || m === 'real');
+  if (first) { // preparación de la escena una sola vez, aunque se arranque en la órbita realista
+    applyWorld(true);
+    clip.constant = CLIP_HIGH;
+    renderer.shadowMap.needsUpdate = true;
+    camera.up.set(0, 1, 0);
+    orbit.target.copy(towersPivot);
+    applyCam(CAM.az);
+  }
   if (m === 'real') { if (!wasReal) orbital.enter(); return; }
-  if (wasReal) orbital.leave();
-  if (!first) return; // cambiar entre vista libre y apartamentos no mueve la cámara
-  applyWorld(true);
-  clip.constant = CLIP_HIGH;
-  renderer.shadowMap.needsUpdate = true;
-  camera.up.set(0, 1, 0);
-  orbit.target.copy(towersPivot);
-  applyCam(CAM.az);
+  if (wasReal) orbital.leave(); // cambiar entre vista libre y apartamentos no mueve la cámara
 }
 // Teclado en vista libre: W/S adelante y atrás, A/D izquierda y derecha (en el plano del suelo).
 // Se mueven juntos la cámara y el punto que mira, así la vista no cambia de ángulo.
@@ -701,7 +703,7 @@ function frame() {
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-setMode('orbit');
+createShowcase({ setMode }); // la barra lateral elige la sección y, con ella, el modo de la escena
 document.getElementById('load').style.opacity = 0;
 setTimeout(() => document.getElementById('load').remove(), 700);
 window.__scene = { THREE, scene, camera, renderer, orbit, setMode, setHour, towers: { t1: l16G.scene, t2: l21G.scene }, orbital };
