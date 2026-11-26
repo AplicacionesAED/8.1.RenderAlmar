@@ -16,6 +16,7 @@ import { createUnits } from './units.js';
 import { createOrbital } from './orbital.js';
 import { createOrthoGround } from './ortho.js';
 import { createShowcase } from './showcase.js';
+import * as GS from '@mkkellogg/gaussian-splats-3d';
 
 // Coordenadas IFC compartidas (x, y, cota) -> escena (x, cota, -y), recentradas
 const O = { x: 825200, y: 1615100 };
@@ -187,6 +188,28 @@ const realTrees = impostorTrees(orto.userData.trees, [
 ]);
 realTrees.traverse((o) => o.layers.set(2));
 scene.add(realTrees);
+
+// --- Entorno real en 3D (Gaussian Splatting) entrenado con los videos del dron del 10-abr-2026: COLMAP + Brush,
+// recortado a 450 m del centro y comprimido (public/splat/almar_dron.ksplat). Coordenadas de COLMAP -> escena con una
+// similitud calculada con el GPS de dos fotos, la vertical de las cámaras y la nube ajustada al DSM (error 1–3 m).
+// Cuando carga reemplaza la ortofoto y sus árboles en la vista 3D; la órbita realista no lo usa (tiene sus fotos).
+const SPLAT_M = new THREE.Matrix4().set(
+  52.522213254486275, -1.4033823162302612, 5.930422085249716, 144.64520086307624,
+  0.9162634813206711, -49.050194789560514, -19.722097391591678, 163.32053077866505,
+  6.024935623516948, 19.693429928915926, -48.69898604233782, -52.247828149973316,
+  0, 0, 0, 1);
+const splatPos = new THREE.Vector3(), splatRot = new THREE.Quaternion(), splatScale = new THREE.Vector3();
+SPLAT_M.decompose(splatPos, splatRot, splatScale);
+const splat = new GS.DropInViewer({ gpuAcceleratedSort: false, sharedMemoryForWorkers: false, sphericalHarmonicsDegree: 0 });
+let splatReady = false;
+splat.addSplatScene('/splat/almar_dron.ksplat', {
+  showLoadingUI: false, progressiveLoad: false,
+  position: splatPos.toArray(), rotation: splatRot.toArray(), scale: splatScale.toArray(),
+}).then(() => {
+  splatReady = true;
+  if (!document.body.classList.contains('real')) orto.visible = realTrees.visible = false;
+}).catch((e) => console.warn('Entorno 3D del dron no disponible:', e));
+scene.add(splat);
 
 // --- Cielo de atardecer (shader Sky de three.js, sin descargas). Aparece cuando la torre ya subió.
 const sky = new Sky();
@@ -414,11 +437,15 @@ const orbital = createOrbital({
     vegGroups.forEach((v) => { v.visible = false; });
     sky.visible = false;
     pivotMark.visible = false;
+    splat.visible = false; // la órbita usa la ortofoto alrededor de la foto de Twinmotion, no el splat
+    orto.visible = realTrees.visible = true;
     customLayout = orbital.layout;
   },
   onLeave() {
     customLayout = null;
     vegGroups.forEach((v) => { v.visible = true; });
+    splat.visible = true;
+    orto.visible = realTrees.visible = !splatReady;
     applyWorld(true);
     pivotMark.visible = showPivot();
     resize();
